@@ -26,7 +26,11 @@ function AuthStack() {
 
 function MainStack() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        contentStyle: { flex: 1 },
+      }}
+    >
       <Stack.Screen name="Home" component={HomeScreen} options={{ title: APP_DISPLAY_NAME }} />
       <Stack.Screen
         name="JoinByCode"

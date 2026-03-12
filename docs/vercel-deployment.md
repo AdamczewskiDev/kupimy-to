@@ -123,6 +123,16 @@ Bez nich aplikacja się zbuduje, ale po otwarciu w przeglądarce nie połączy s
 - Aplikacja to SPA (single page). Vercel zwykle wykrywa to i ustawia **rewrites** tak, żeby wszystkie ścieżki zwracały `index.html`. Jeśli masz 404:
   - W **Settings** → **Rewrites** dodaj regułę: Source `/(.*)`, Destination `/index.html` (albo użyj domyślnego presetu dla SPA, jeśli Vercel go oferuje).
 
+### Favicon (ikona w zakładce) nie widać lub jest niewyraźna
+
+- **Źródło:** plik `app/assets/favicon.png`. Powinien być **mały** (np. 48×48 px), żeby przeglądarka poprawnie wyświetlała go w zakładce. W projekcie jest już ustawiony taki rozmiar.
+- **Build:** przy `npm run build:web` Expo generuje z tego pliku `dist/favicon.ico` i wstawia w `index.html` link `<link rel="icon" href="/favicon.ico" />`.
+- **Co zrobić, żeby favicon był widoczny:**
+  1. Zbuduj web jeszcze raz w katalogu `app`: `npm run build:web`.
+  2. Wdróż zmiany na Vercel (push na repo albo Redeploy) — wtedy wdrożona wersja będzie miała aktualny favicon.
+  3. W przeglądarce zrób **twarde odświeżenie** (Ctrl+Shift+R / Cmd+Shift+R) albo otwórz stronę w trybie incognito. Przeglądarki mocno cache’ują favicony, więc stara ikona może się trzymać przez chwilę.
+- **Własna ikonka:** jeśli chcesz inną grafikę, podmień `app/assets/favicon.png` na plik PNG w rozmiarze **48×48** (albo 32×32), po czym wykonaj ponownie build i deploy.
+
 ---
 
 ## Podsumowanie — checklist przed Deploy

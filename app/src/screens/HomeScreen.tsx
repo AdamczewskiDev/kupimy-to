@@ -142,7 +142,15 @@ export default function HomeScreen() {
     if (addError) Alert.alert('Błąd', addError);
   };
 
-  const handleRemoveItem = (item: { id: string; label: string }) => {
+  const handleRemoveItem = async (item: { id: string; label: string }) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (!window.confirm(`Usunąć „${item.label}"?`)) return;
+      setDeletingId(item.id);
+      const { error: delError } = await removeItem(item.id);
+      setDeletingId(null);
+      if (delError) Alert.alert('Błąd', delError);
+      return;
+    }
     Alert.alert('Usuń pozycję', `Usunąć „${item.label}"?`, [
       { text: 'Anuluj', style: 'cancel' },
       {
@@ -165,7 +173,15 @@ export default function HomeScreen() {
     if (markError) Alert.alert('Błąd', markError);
   };
 
-  const handleRemoveBoughtItem = (item: { id: string; label: string }) => {
+  const handleRemoveBoughtItem = async (item: { id: string; label: string }) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (!window.confirm(`Usunąć „${item.label}" z listy?`)) return;
+      setDeletingBoughtId(item.id);
+      const { error: delError } = await removeItem(item.id);
+      setDeletingBoughtId(null);
+      if (delError) Alert.alert('Błąd', delError);
+      return;
+    }
     Alert.alert('Usuń pozycję', `Usunąć „${item.label}" z listy?`, [
       { text: 'Anuluj', style: 'cancel' },
       {
@@ -342,7 +358,14 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScrollView style={[styles.scroll, { backgroundColor: colors.background }]} contentContainerStyle={styles.scrollContent}>
+    <View style={styles.screenWrap}>
+    <ScrollView
+      style={[styles.scroll, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={true}
+      bounces={true}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.contentWrap}>
       <Text style={[styles.title, { color: colors.text }]}>{household.name || 'Lista zakupów'}</Text>
 
@@ -536,6 +559,8 @@ export default function HomeScreen() {
         </>
       )}
       </View>
+
+    </ScrollView>
 
       <Modal
         visible={menuVisible}
@@ -735,11 +760,14 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenWrap: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
