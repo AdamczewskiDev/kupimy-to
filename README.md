@@ -16,7 +16,7 @@ Aplikacja mobilna (Expo, React Native) do wspólnej listy zakupów z trybem „W
 - Dołączenie do gospodarstwa po kodzie
 - Wspólna lista: dodawanie, usuwanie, odhaczanie („Do kupienia" / „Kupione") z synchronizacją Realtime
 - Tryb „W sklepie": countdown (2/3/5 min), blokada dopisywania dla pozostałych, odliczanie, „Zakończ zakupy"
-- Powiadomienia push do domowników przy włączeniu „W sklepie" (wymaga konfiguracji FCM — patrz supabase/README.md)
+- Powiadomienia push do domowników przy włączeniu „W sklepie" i „Za chwilę idę" (Expo Push Service — patrz app/README.md i supabase/README.md)
 
 Wszystkie usługi zewnętrzne w darmowych planach: [docs/third-party-free-tier.md](docs/third-party-free-tier.md).
 
@@ -37,7 +37,7 @@ Scenariusze do ręcznego sprawdzenia z dwoma użytkownikami (dwa urządzenia lub
 | 1 | **Użytkownik A** zakłada gospodarstwo, kopiuje kod. **Użytkownik B** loguje się (lub rejestruje), wchodzi w „Mam kod zaproszenia", wkleja kod i dołącza. | B widzi tę samą listę co A (na razie pustą). |
 | 2 | **A** dodaje pozycję „Mleko". | W ciągu kilku sekund **B** widzi „Mleko" w sekcji „Do kupienia". |
 | 3 | **B** dodaje „Chleb", **A** odhacza „Mleko". | A widzi „Chleb" na liście i „Mleko" w „Kupione"; B widzi to samo. |
-| 4 | **A** naciska „W sklepie", wybiera 3 min. | U A widać countdown. U **B** formularz dopisywania jest zablokowany, komunikat o zakupach w toku. (Push do B po skonfigurowaniu FCM.) |
+| 4 | **A** naciska „W sklepie", wybiera czas. | U A widać countdown. U **B** formularz dopisywania jest zablokowany, komunikat o zakupach w toku. (Push do B jeśli B ma zarejestrowany token Expo.) |
 | 5 | **A** naciska „Zakończ zakupy" przed upływem countdownu. | U B odblokowuje się dopisywanie, countdown znika. |
 | 6 | **B** usuwa pozycję (Usuń, potwierdzenie). | Pozycja znika też u A. |
 

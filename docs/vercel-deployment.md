@@ -145,3 +145,11 @@ Bez nich aplikacja się zbuduje, ale po otwarciu w przeglądarce nie połączy s
 - [ ] Klik **Deploy** i sprawdzenie linku w przeglądarce.
 
 Po tym wdrożeniu możesz otwierać link (np. na telefonie) i korzystać z KupiMY to! w przeglądarce — dane są w Supabase, więc lista jest wspólna na wszystkich urządzeniach.
+
+---
+
+## Produkcja: powiadomienia push
+
+- **Na Vercel** wdrażana jest tylko **wersja web** aplikacji. Do jej działania wystarczą zmienne `EXPO_PUBLIC_SUPABASE_URL` i `EXPO_PUBLIC_SUPABASE_ANON_KEY` — **nie musisz** ustawiać na Vercelu `EXPO_PUBLIC_EAS_PROJECT_ID`.
+- **Powiadomienia push** („W sklepie”, „Za chwilę idę”) są wysyłane przez **Supabase Edge Functions** (Expo Push API). Działają na **telefonach z aplikacją natywną** (development build / EAS Build), gdzie w buildzie jest ustawiony EAS Project ID. Użytkownicy korzystający tylko z wersji w przeglądarce mogą **wywoływać** akcje (np. „W sklepie”), ale sami **nie dostaną** pusha w przeglądarce.
+- Żeby push działał w produkcji dla aplikacji natywnej: w Supabase muszą być wdrożone Edge Functions (`send-in-store-push`, `send-shopping-warning-push`), a w aplikacji (np. w EAS Build) ustawiony ten sam EAS Project ID co w projekcie Expo.

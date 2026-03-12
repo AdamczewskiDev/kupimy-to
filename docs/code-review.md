@@ -14,7 +14,7 @@ Dokument podsumowuje przegląd kodu oraz zmiany wprowadzone na jego podstawie.
 
 - **Auth (JWT):** Obie funkcje (`send-in-store-push`, `send-shopping-warning-push`) weryfikują nagłówek `Authorization: Bearer <jwt>`. Tylko użytkownik, którego `auth.uid()` zgadza się z `shopperUserId` / `senderUserId` z body, może wywołać wysyłkę (401 Unauthorized przy braku tokenu, 403 Forbidden przy niezgodności).
 - **CORS:** `send-shopping-warning-push` korzysta z współdzielonego `_shared/cors.ts` (jak `send-in-store-push`).
-- **DRY:** Wspólna logika „pobierz członków gospodarstwa → tokeny FCM” jest w `_shared/push.ts` (`sendPushToHouseholdExceptUser`). Weryfikacja JWT w `_shared/auth.ts` (`getAuthenticatedUserId`).
+- **DRY:** Wspólna logika „pobierz członków gospodarstwa → tokeny Expo” i wysyłka przez Expo Push API jest w `_shared/push.ts` (`getHouseholdPushTokensExceptUser`, `sendExpoPushNotifications`). Weryfikacja JWT w `_shared/auth.ts` (`getAuthenticatedUserId`).
 - **Sekret:** Do weryfikacji JWT potrzebny jest **SUPABASE_ANON_KEY** w sekretach Edge Functions (Dashboard → Project Settings → Edge Functions).
 
 ### Aplikacja (Expo)

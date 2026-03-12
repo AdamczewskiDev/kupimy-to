@@ -7,7 +7,7 @@ Expo (TypeScript) + Supabase – wspólna lista zakupów (KupiMY to!).
 - **Auth:** logowanie / rejestracja (Supabase Auth)
 - **Gospodarstwo:** założenie, kod zaproszenia, dołączenie po kodzie
 - **Lista:** sekcje „Do kupienia" i „Kupione", dodawanie / usuwanie / odhaczanie w czasie rzeczywistym
-- **W sklepie:** przycisk „W sklepie", wybór countdownu (2/3/5 min), odliczanie, blokada dopisywania dla pozostałych, „Zakończ zakupy", push do domowników (po skonfigurowaniu FCM)
+- **W sklepie:** przycisk „W sklepie", wybór countdownu (5/10/20 min), odliczanie, blokada dopisywania dla pozostałych, „Zakończ zakupy", push do domowników (Expo Push Service)
 
 ## Uruchomienie
 
@@ -39,7 +39,12 @@ Jeśli Expo Go pokaże **„Project is incompatible with this version of Expo Go
 - Zaktualizuj Expo Go do najnowszej wersji (SDK 55).
 - Na **iOS** wersja pod SDK 55 bywa najpierw w **TestFlight** (beta) – [expo.dev](https://expo.dev/go) lub dokumentacja Expo.
 
-**Push („W sklepie"):** w Expo Go powiadomienia push mogą nie działać; do pełnego testu push potrzebny jest **development build** (`npx expo run:ios` / `npx expo run:android`).
+**Push:** powiadomienia używają **Expo Push Service** (token z `getExpoPushTokenAsync`). Aby rejestrować token:
+- Ustaw **EAS Project ID**: w `app.json` dodaj `"extra": { "eas": { "projectId": "GUID-z-expo.dev" } }` (GUID: [expo.dev](https://expo.dev) → projekt → Settings) **lub** w `.env`: `EXPO_PUBLIC_EAS_PROJECT_ID=GUID`.
+- Test na **fizycznym urządzeniu** z przyznanymi uprawnieniami do powiadomień.
+W Expo Go push może być ograniczony; do pełnego testu zalecany **development build** (`npx expo run:ios` / `npx expo run:android`).
+
+**Testowanie powiadomień:** (1) Dwa konta w jednym gospodarstwie, (2) na drugim urządzeniu/kontie przyznaj powiadomienia i upewnij się, że EAS Project ID jest ustawiony, (3) z pierwszego konta naciśnij „W sklepie" lub „Za chwilę idę na zakupy!" – drugie urządzenie powinno dostać push. Edge Functions nie wymagają już FCM_SERVER_KEY (używany jest Expo Push API).
 
 ## Wdrożenie web (za darmo) – dostęp z każdego miejsca
 

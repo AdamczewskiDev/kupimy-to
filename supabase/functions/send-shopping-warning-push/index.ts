@@ -1,13 +1,15 @@
 // Push: "Za chwilę idę na zakupy! Masz 15 minut na dodanie produktów." – do wszystkich oprócz nadawcy.
-// Verifies JWT: caller must be senderUserId.
+// Uses Expo Push API. Verifies JWT: caller must be senderUserId.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { getAuthenticatedUserId } from '../_shared/auth.ts';
-import { sendPushToHouseholdExceptUser } from '../_shared/push.ts';
+import {
+  getHouseholdPushTokensExceptUser,
+  sendExpoPushNotifications,
+} from '../_shared/push.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const fcmServerKey = Deno.env.get('FCM_SERVER_KEY');
 
 const WARNING_MINUTES = 15;
 
@@ -45,15 +47,9 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const fcmTokens = await sendPushToHouseholdExceptUser(supabase, householdId, senderUserId);
-    if (fcmTokens.length === 0) {
+    const tokens = await getHouseholdPushTokensExceptUser(supabase, householdId, senderUserId);
+    if (tokens.length === 0) {
       return new Response(JSON.stringify({ sent: 0 }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    if (!fcmServerKey) {
-      console.warn('FCM_SERVER_KEY not set – skipping push send');
-      return new Response(JSON.stringify({ sent: 0, skipped: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -61,22 +57,8 @@ Deno.serve(async (req) => {
     const title = 'Za chwilę idę na zakupy!';
     const bodyText = `Masz ${WARNING_MINUTES} minut na dodanie produktów.`;
 
-    let sent = 0;
-    for (const token of fcmTokens) {
-      const res = await fetch('https://fcm.googleapis.com/fcm/send', {
-        method: 'POST',
-        headers: {
-          Authorization: `key=${fcmServerKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: token,
-          notification: { title, body: bodyText },
-          priority: 'high',
-        }),
-      });
-      if (res.ok) sent++;
-    }
+    const messages = tokens.map((to) => ({ to, title, body: bodyText }));
+    const sent = await sendExpoPushNotifications(messages);
 
     return new Response(JSON.stringify({ sent }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
