@@ -22,13 +22,18 @@ import { useHousehold } from '../hooks/useHousehold';
 import { useListItems } from '../hooks/useListItems';
 import { useInStoreSession } from '../hooks/useInStoreSession';
 import { usePushTokenRegistration } from '../hooks/usePushTokenRegistration';
+import { useSuggestedRecipes } from '../hooks/useSuggestedRecipes';
 import { supabase } from '../lib/supabase';
 import { APP_DISPLAY_NAME, APP_ICON } from '../config/app';
 import {
   WARNING_COUNTDOWN_MINUTES,
   AUTO_IN_STORE_MINUTES,
   INVITE_CODE_MAX_LENGTH,
+  LIST_ITEM_UNITS,
+  DEFAULT_LIST_ITEM_UNIT,
 } from '../config/constants';
+import type { ListItem } from '../types/list';
+import type { RecipeWithIngredients, RecipeIngredient } from '../types/recipe';
 import { useTheme } from '../contexts/ThemeContext';
 import { SHOPPING_CATEGORIES } from '../data/shoppingCategories';
 import type { ShoppingCategory } from '../data/shoppingCategories';
@@ -56,6 +61,8 @@ export default function HomeScreen() {
   const [, setCountdownTick] = useState(0); // setCountdownTick co 1s wymusza re-render, żeby timer się odświeżał
   const [startingWarning, setStartingWarning] = useState(false);
   const [newItemLabel, setNewItemLabel] = useState('');
+  const [newItemQuantity, setNewItemQuantity] = useState('1');
+  const [newItemUnit, setNewItemUnit] = useState(DEFAULT_LIST_ITEM_UNIT);
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -68,6 +75,13 @@ export default function HomeScreen() {
   const [inStoreBlockAdding, setInStoreBlockAdding] = useState(true);
   const [categoryPickerCategory, setCategoryPickerCategory] = useState<ShoppingCategory | null>(null);
   const [addingCategoryProduct, setAddingCategoryProduct] = useState<string | null>(null);
+  const { suggested: suggestedRecipes, isLoading: suggestedRecipesLoading } = useSuggestedRecipes(
+    todoItems.map((i) => i.label),
+    2
+  );
+  const [recipeModalRecipe, setRecipeModalRecipe] = useState<RecipeWithIngredients | null>(null);
+  const [recipeModalSelectedIds, setRecipeModalSelectedIds] = useState<Set<string>>(new Set());
+  const [addingRecipeIngredients, setAddingRecipeIngredients] = useState(false);
 
   const handleCreateHousehold = async () => {
     const name = createName.trim();
@@ -131,14 +145,52 @@ export default function HomeScreen() {
   const handleAddItem = async () => {
     const trimmed = newItemLabel.trim();
     if (!trimmed) return;
+    const q = parseFloat(newItemQuantity.replace(',', '.'));
+    const quantity = Number.isFinite(q) && q > 0 ? q : 1;
     setAdding(true);
-    const { error: addError } = await addItem(trimmed);
+    const { error: addError } = await addItem(trimmed, quantity, newItemUnit);
     setAdding(false);
     if (addError) {
       Alert.alert('Błąd', addError);
     } else {
       setNewItemLabel('');
+      setNewItemQuantity('1');
+      setNewItemUnit(DEFAULT_LIST_ITEM_UNIT);
     }
+  };
+
+  const formatItemLine = (item: ListItem) => {
+    const q = item.quantity;
+    const u = item.unit || 'szt';
+    if (q === 1 && u === 'szt') return item.label;
+    const qStr = q % 1 === 0 ? String(Math.round(q)) : String(q);
+    return `${item.label} (${qStr} ${u})`;
+  };
+
+  const openRecipeModal = (recipe: RecipeWithIngredients) => {
+    setRecipeModalRecipe(recipe);
+    setRecipeModalSelectedIds(new Set(recipe.ingredients.map((i) => i.id)));
+  };
+
+  const toggleRecipeIngredient = (id: string) => {
+    setRecipeModalSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleAddRecipeIngredientsToList = async () => {
+    if (!recipeModalRecipe || isAddBlocked) return;
+    const toAdd = recipeModalRecipe.ingredients.filter((ing) => recipeModalSelectedIds.has(ing.id));
+    if (toAdd.length === 0) return;
+    setAddingRecipeIngredients(true);
+    for (const ing of toAdd) {
+      await addItem(ing.ingredient_label, ing.quantity, ing.unit);
+    }
+    setAddingRecipeIngredients(false);
+    setRecipeModalRecipe(null);
   };
 
   const handleAddFromCategory = async (productLabel: string) => {
@@ -147,7 +199,7 @@ export default function HomeScreen() {
       return;
     }
     setAddingCategoryProduct(productLabel);
-    const { error: addError } = await addItem(productLabel);
+    const { error: addError } = await addItem(productLabel, 1, 'szt');
     setAddingCategoryProduct(null);
     if (addError) Alert.alert('Błąd', addError);
   };
@@ -478,6 +530,26 @@ export default function HomeScreen() {
               </View>
             </View>
           )}
+          {!suggestedRecipesLoading && suggestedRecipes.length > 0 && (
+            <View style={styles.suggestedRecipesSection}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Możesz zrobić</Text>
+              <Text style={[styles.categoriesHint, { color: colors.textSecondary }]}>
+                Masz na liście składniki do tych przepisów
+              </Text>
+              <View style={styles.suggestedRecipesWrap}>
+                {suggestedRecipes.map((r) => (
+                  <TouchableOpacity
+                    key={r.id}
+                    style={[styles.recipeChip, { backgroundColor: colors.primaryTint, borderColor: colors.primary }]}
+                    onPress={() => openRecipeModal(r)}
+                    accessibilityLabel={`Przepis: ${r.name}`}
+                  >
+                    <Text style={[styles.recipeChipText, { color: colors.text }]} numberOfLines={2}>{r.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Do kupienia</Text>
           {isAddBlocked ? (
             <View style={[styles.addBlockedBlock, { backgroundColor: colors.rowBg }]}>
@@ -486,38 +558,68 @@ export default function HomeScreen() {
               </Text>
             </View>
           ) : (
-            <View style={styles.addRow}>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
-                placeholder="Nazwa pozycji…"
-                placeholderTextColor={colors.textSecondary}
-                value={newItemLabel}
-                onChangeText={setNewItemLabel}
-                onSubmitEditing={handleAddItem}
-                returnKeyType="done"
-                editable={!adding}
-                accessibilityLabel="Nazwa pozycji do dodania"
-              />
-              <TouchableOpacity
-                style={[styles.addButton, adding && styles.buttonDisabled, { backgroundColor: colors.primary }]}
-                onPress={handleAddItem}
-                disabled={adding || !newItemLabel.trim()}
-                accessibilityLabel="Dodaj pozycję"
-              >
-                {adding ? (
-                  <ActivityIndicator size="small" color={colors.primaryText} />
-                ) : (
-                  <Text style={styles.addButtonText}>Dodaj</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+            <>
+              <View style={styles.addRow}>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
+                  placeholder="Nazwa pozycji…"
+                  placeholderTextColor={colors.textSecondary}
+                  value={newItemLabel}
+                  onChangeText={setNewItemLabel}
+                  onSubmitEditing={handleAddItem}
+                  returnKeyType="done"
+                  editable={!adding}
+                  accessibilityLabel="Nazwa pozycji do dodania"
+                />
+                <TouchableOpacity
+                  style={[styles.addButton, adding && styles.buttonDisabled, { backgroundColor: colors.primary }]}
+                  onPress={handleAddItem}
+                  disabled={adding || !newItemLabel.trim()}
+                  accessibilityLabel="Dodaj pozycję"
+                >
+                  {adding ? (
+                    <ActivityIndicator size="small" color={colors.primaryText} />
+                  ) : (
+                    <Text style={styles.addButtonText}>Dodaj</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+              <View style={styles.addRowQuantity}>
+                <TextInput
+                  style={[styles.inputQuantity, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
+                  placeholder="Ilość"
+                  placeholderTextColor={colors.textSecondary}
+                  value={newItemQuantity}
+                  onChangeText={setNewItemQuantity}
+                  keyboardType="decimal-pad"
+                  editable={!adding}
+                  accessibilityLabel="Ilość"
+                />
+                <View style={styles.unitChipsRow}>
+                  {LIST_ITEM_UNITS.map((u) => (
+                    <TouchableOpacity
+                      key={u}
+                      style={[
+                        styles.unitChip,
+                        newItemUnit === u && styles.unitChipActive,
+                        { backgroundColor: newItemUnit === u ? colors.primaryTint : colors.rowBg, borderColor: newItemUnit === u ? colors.primary : colors.border },
+                      ]}
+                      onPress={() => setNewItemUnit(u)}
+                      accessibilityLabel={`Jednostka ${u}`}
+                    >
+                      <Text style={[styles.unitChipText, { color: newItemUnit === u ? colors.primary : colors.textSecondary }]}>{u}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </>
           )}
           {todoItems.length === 0 ? (
             <Text style={[styles.emptyHint, { color: colors.textSecondary }]}>Brak pozycji na liście.</Text>
           ) : (
             todoItems.map((item) => (
               <View key={item.id} style={[styles.listRow, { backgroundColor: colors.rowBg }]}>
-                <Text style={[styles.listLabel, { color: colors.text }]}>{item.label}</Text>
+                <Text style={[styles.listLabel, { color: colors.text }]}>{formatItemLine(item)}</Text>
                 <TouchableOpacity
                   style={styles.markBoughtButton}
                   onPress={() => handleMarkAsBought(item.id)}
@@ -552,7 +654,7 @@ export default function HomeScreen() {
           ) : (
             boughtItems.map((item) => (
               <View key={item.id} style={[styles.listRowBought, { backgroundColor: colors.rowBoughtBg }]}>
-                <Text style={[styles.listLabelBought, { color: colors.success }]}>{item.label}</Text>
+                <Text style={[styles.listLabelBought, { color: colors.success }]}>{formatItemLine(item)}</Text>
                 <TouchableOpacity
                   style={styles.boughtActionButton}
                   onPress={() => handleUnmarkBought(item.id)}
@@ -777,6 +879,66 @@ export default function HomeScreen() {
                 >
                   <Text style={styles.primaryButtonText}>Gotowe</Text>
                 </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={recipeModalRecipe !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRecipeModalRecipe(null)}
+      >
+        <TouchableOpacity
+          style={[styles.menuOverlay, { backgroundColor: colors.overlay }]}
+          activeOpacity={1}
+          onPress={() => setRecipeModalRecipe(null)}
+        >
+          <View style={[styles.recipeModalCard, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
+            {recipeModalRecipe && (
+              <>
+                <Text style={[styles.menuTitle, { color: colors.text }]}>{recipeModalRecipe.name}</Text>
+                {recipeModalRecipe.description ? (
+                  <Text style={[styles.recipeDescription, { color: colors.textSecondary }]}>{recipeModalRecipe.description}</Text>
+                ) : null}
+                <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 12 }]}>Składniki</Text>
+                {recipeModalRecipe.ingredients.map((ing) => (
+                  <TouchableOpacity
+                    key={ing.id}
+                    style={[styles.recipeIngredientRow, { backgroundColor: colors.rowBg }]}
+                    onPress={() => toggleRecipeIngredient(ing.id)}
+                    accessibilityLabel={`${ing.ingredient_label} ${ing.quantity} ${ing.unit}`}
+                    accessibilityState={{ checked: recipeModalSelectedIds.has(ing.id) }}
+                  >
+                    <Text style={[styles.recipeIngredientLabel, { color: colors.text }]}>
+                      {ing.ingredient_label} – {ing.quantity % 1 === 0 ? Math.round(ing.quantity) : ing.quantity} {ing.unit}
+                    </Text>
+                    <Text style={{ color: colors.primary, fontSize: 18 }}>
+                      {recipeModalSelectedIds.has(ing.id) ? '☑' : '☐'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                <View style={styles.editNameRow}>
+                  <TouchableOpacity
+                    style={[styles.editNameButton, styles.editNameButtonSecondary, { borderColor: colors.primary }]}
+                    onPress={() => setRecipeModalRecipe(null)}
+                  >
+                    <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Anuluj</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.editNameButton, styles.editNameButtonPrimary, { backgroundColor: colors.primary }, (addingRecipeIngredients || recipeModalSelectedIds.size === 0) && styles.buttonDisabled]}
+                    onPress={handleAddRecipeIngredientsToList}
+                    disabled={addingRecipeIngredients || recipeModalSelectedIds.size === 0}
+                  >
+                    {addingRecipeIngredients ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>Dodaj wybrane do listy</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </>
             )}
           </View>
@@ -1033,6 +1195,52 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
   },
+  suggestedRecipesSection: {
+    marginBottom: 12,
+  },
+  suggestedRecipesWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  recipeChip: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    maxWidth: '48%',
+  },
+  recipeChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  recipeModalCard: {
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+    alignSelf: 'center',
+    maxHeight: '80%',
+  },
+  recipeDescription: {
+    fontSize: 14,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  recipeIngredientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  recipeIngredientLabel: {
+    fontSize: 15,
+    flex: 1,
+  },
   categoryChip: {
     width: '30%',
     minWidth: 100,
@@ -1096,7 +1304,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginBottom: 8,
+  },
+  addRowQuantity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 12,
+  },
+  inputQuantity: {
+    width: 72,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    fontSize: 15,
+    backgroundColor: '#fff',
+  },
+  unitChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    flex: 1,
+  },
+  unitChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  unitChipActive: {
+    borderWidth: 2,
+  },
+  unitChipText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   input: {
     flex: 1,

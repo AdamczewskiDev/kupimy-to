@@ -4,5 +4,7 @@ export type ListItem = {
   label: string;
   status: 'todo' | 'bought';
   position: number;
+  quantity: number;
+  unit: string;
   updated_at: string;
 };
