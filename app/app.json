@@ -1,5 +1,10 @@
 {
   "expo": {
+    "extra": {
+  "eas": {
+    "projectId": "5ad34ba4-5570-488c-aad2-eb2715378dd8"
+  }
+},
     "name": "KupiMY to!",
     "slug": "kupimy-to",
     "version": "1.0.0",

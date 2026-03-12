@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -53,6 +53,7 @@ export default function HomeScreen() {
   const [editNameVisible, setEditNameVisible] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
   const [warningCountdownUntil, setWarningCountdownUntil] = useState<number | null>(null);
+  const [, setCountdownTick] = useState(0); // setCountdownTick co 1s wymusza re-render, żeby timer się odświeżał
   const [startingWarning, setStartingWarning] = useState(false);
   const [newItemLabel, setNewItemLabel] = useState('');
   const [adding, setAdding] = useState(false);
@@ -217,32 +218,35 @@ export default function HomeScreen() {
     setInStoreModalVisible(true);
   };
 
+  const runStartSession = useCallback(
+    async (minutes: number, blockAdding: boolean = true) => {
+      setStartingSession(true);
+      const { error: sessionError } = await startSession(minutes, blockAdding);
+      setStartingSession(false);
+      if (sessionError) {
+        Alert.alert('Błąd', sessionError);
+        return;
+      }
+      if (household?.id && user?.id) {
+        try {
+          await supabase.functions.invoke('send-in-store-push', {
+            body: {
+              householdId: household.id,
+              shopperUserId: user.id,
+              countdownMinutes: minutes,
+            },
+          });
+        } catch {
+          // Best-effort push
+        }
+      }
+    },
+    [startSession, household?.id, user?.id]
+  );
+
   const confirmStartInStore = () => {
     setInStoreModalVisible(false);
     runStartSession(inStoreMinutes, inStoreBlockAdding);
-  };
-
-  const runStartSession = async (minutes: number, blockAdding: boolean = true) => {
-    setStartingSession(true);
-    const { error: sessionError } = await startSession(minutes, blockAdding);
-    setStartingSession(false);
-    if (sessionError) {
-      Alert.alert('Błąd', sessionError);
-      return;
-    }
-    if (household?.id && user?.id) {
-      try {
-        await supabase.functions.invoke('send-in-store-push', {
-          body: {
-            householdId: household.id,
-            shopperUserId: user.id,
-            countdownMinutes: minutes,
-          },
-        });
-      } catch {
-        // Best-effort push
-      }
-    }
   };
 
   const handleGoingSoon = async () => {
@@ -267,10 +271,12 @@ export default function HomeScreen() {
       if (Date.now() >= warningCountdownUntil) {
         setWarningCountdownUntil(null);
         runStartSession(AUTO_IN_STORE_MINUTES, true);
+      } else {
+        setCountdownTick((t) => t + 1); // re-render co sekundę, żeby timer się zmniejszał na ekranie
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [warningCountdownUntil]);
+  }, [warningCountdownUntil, runStartSession]);
 
   const warningRemainingSeconds =
     warningCountdownUntil != null
