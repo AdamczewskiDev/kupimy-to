@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Local env (nie commituj kluczy)
+.env
+.env*.local
+
+# Expo / build
+.expo/
+dist/
+web-build/
+
+# Cursor / narzędzia
+.cursor/
+_bmad/
+_bmad-output/
+
+# System
+.DS_Store
+*.log

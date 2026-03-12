@@ -1,0 +1,9 @@
+{
+  "name": "new-p",
+  "private": true,
+  "description": "Shared Grocery Smart-List — wspólna lista zakupów z trybem W sklepie",
+  "scripts": {
+    "verify": "cd app && npx tsc --noEmit",
+    "start": "cd app && npm run start"
+  }
+}
