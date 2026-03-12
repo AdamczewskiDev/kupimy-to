@@ -1,6 +1,6 @@
 # Wymóg: usługi 3rd party za darmo
 
-**Zasada projektu:** Wszystkie usługi zewnętrzne (third-party) używane w new-p muszą mieć **darmowy plan** wystarczający do MVP i normalnego użytku (bez obowiązkowej płatnej subskrypcji).
+**Zasada projektu:** Wszystkie usługi zewnętrzne (third-party) używane w **KupiMY to!** (kupiMY-to!) muszą mieć **darmowy plan** wystarczający do MVP i normalnego użytku (bez obowiązkowej płatnej subskrypcji).
 
 ## Obecny stack i warstwy free
 

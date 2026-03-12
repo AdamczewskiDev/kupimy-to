@@ -1,10 +1,11 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "KupiMY to!",
+    "slug": "kupimy-to",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "description": "Wspólna lista zakupów dla Twojego domu. Dodawaj pozycje, odhaczaj w sklepie, bądź na bieżąco z domownikami.",
     "userInterfaceStyle": "light",
     "scheme": "app",
     "splash": {

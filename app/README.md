@@ -1,6 +1,6 @@
-# new-p (Expo app)
+# KupiMY to! (Expo app)
 
-Expo (TypeScript) + Supabase – wspólna lista zakupów (Shared Grocery Smart-List).
+Expo (TypeScript) + Supabase – wspólna lista zakupów (KupiMY to!).
 
 ## Co jest w aplikacji
 
@@ -55,6 +55,9 @@ Jeśli Expo Go pokaże **„Project is incompatible with this version of Expo Go
 
    ### Vercel (zalecane)
 
+   **Szczegółowy przewodnik krok po kroku:** [docs/vercel-deployment.md](../docs/vercel-deployment.md) — tam jest opisany cały proces od założenia konta po pierwszy deploy i rozwiązywanie problemów.
+
+   W skrócie:
    - Załóż konto na [vercel.com](https://vercel.com) (GitHub login).
    - **Add New Project** → wybierz repozytorium z tym kodem (albo wgraj przez **Vercel CLI**: `npx vercel` w katalogu `app`).
    - **Root Directory:** ustaw na `app` (jeśli projekt jest w repo jako podkatalog).

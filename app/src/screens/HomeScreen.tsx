@@ -22,8 +22,10 @@ import { useListItems } from '../hooks/useListItems';
 import { useInStoreSession } from '../hooks/useInStoreSession';
 import { usePushTokenRegistration } from '../hooks/usePushTokenRegistration';
 import { supabase } from '../lib/supabase';
-import { APP_DISPLAY_NAME } from '../config/app';
+import { APP_DISPLAY_NAME, APP_ICON } from '../config/app';
 import { useTheme } from '../contexts/ThemeContext';
+import { SHOPPING_CATEGORIES } from '../data/shoppingCategories';
+import type { ShoppingCategory } from '../data/shoppingCategories';
 
 type MainStackParamList = { Home: undefined; JoinByCode: undefined };
 type Nav = NativeStackNavigationProp<MainStackParamList, 'Home'>;
@@ -55,6 +57,8 @@ export default function HomeScreen() {
   const [inStoreModalVisible, setInStoreModalVisible] = useState(false);
   const [inStoreMinutes, setInStoreMinutes] = useState<5 | 10 | 20>(10);
   const [inStoreBlockAdding, setInStoreBlockAdding] = useState(true);
+  const [categoryPickerCategory, setCategoryPickerCategory] = useState<ShoppingCategory | null>(null);
+  const [addingCategoryProduct, setAddingCategoryProduct] = useState<string | null>(null);
 
   const handleCreateHousehold = async () => {
     const name = createName.trim();
@@ -74,7 +78,12 @@ export default function HomeScreen() {
   useEffect(() => {
     if (household) {
       navigation.setOptions({
-        title: APP_DISPLAY_NAME,
+        headerTitle: () => (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 20, color: colors.primary }}>{APP_ICON}</Text>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: colors.text }}>{APP_DISPLAY_NAME}</Text>
+          </View>
+        ),
         headerTitleAlign: 'center',
         headerLeft: () => (
           <TouchableOpacity
@@ -97,7 +106,7 @@ export default function HomeScreen() {
         ),
       });
     }
-  }, [household, navigation, colors.primary, isDark, toggleTheme]);
+  }, [household, navigation, colors.primary, colors.text, isDark, toggleTheme]);
 
   const handleCopyCode = async () => {
     if (!household?.invite_code) return;
@@ -120,6 +129,17 @@ export default function HomeScreen() {
     } else {
       setNewItemLabel('');
     }
+  };
+
+  const handleAddFromCategory = async (productLabel: string) => {
+    if (isAddBlocked) {
+      Alert.alert('Zakupy w toku', 'Nie możesz teraz dopisywać do listy.');
+      return;
+    }
+    setAddingCategoryProduct(productLabel);
+    const { error: addError } = await addItem(productLabel);
+    setAddingCategoryProduct(null);
+    if (addError) Alert.alert('Błąd', addError);
   };
 
   const handleRemoveItem = (item: { id: string; label: string }) => {
@@ -396,6 +416,27 @@ export default function HomeScreen() {
         </View>
       ) : (
         <>
+          {!isAddBlocked && (
+            <View style={styles.categoriesSection}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Kategorie</Text>
+              <Text style={[styles.categoriesHint, { color: colors.textSecondary }]}>Kliknij kategorię i wybierz produkt do dodania</Text>
+              <View style={styles.categoriesWrap}>
+                {SHOPPING_CATEGORIES.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.categoryChip, { backgroundColor: colors.rowBg, borderColor: colors.border }]}
+                    onPress={() => setCategoryPickerCategory(cat)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.categoryChipIcon}>{cat.icon}</Text>
+                    <Text style={[styles.categoryChipLabel, { color: colors.text }]} numberOfLines={2}>
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Do kupienia</Text>
           {isAddBlocked ? (
             <View style={[styles.addBlockedBlock, { backgroundColor: colors.rowBg }]}>
@@ -421,7 +462,7 @@ export default function HomeScreen() {
                 disabled={adding || !newItemLabel.trim()}
               >
                 {adding ? (
-                  <ActivityIndicator size="small" color="#2563eb" />
+                  <ActivityIndicator size="small" color={colors.primaryText} />
                 ) : (
                   <Text style={styles.addButtonText}>Dodaj</Text>
                 )}
@@ -640,6 +681,57 @@ export default function HomeScreen() {
                 <Text style={styles.primaryButtonText}>Start</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={categoryPickerCategory !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCategoryPickerCategory(null)}
+      >
+        <TouchableOpacity
+          style={[styles.menuOverlay, { backgroundColor: colors.overlay }]}
+          activeOpacity={1}
+          onPress={() => setCategoryPickerCategory(null)}
+        >
+          <View
+            style={[styles.categoryPickerCard, { backgroundColor: colors.card }]}
+            onStartShouldSetResponder={() => true}
+          >
+            {categoryPickerCategory && (
+              <>
+                <View style={styles.categoryPickerHeader}>
+                  <Text style={styles.categoryPickerIcon}>{categoryPickerCategory.icon}</Text>
+                  <Text style={[styles.menuTitle, { color: colors.text }]}>{categoryPickerCategory.name}</Text>
+                </View>
+                <Text style={[styles.categoriesHint, { color: colors.textSecondary, marginBottom: 12 }]}>
+                  Wybierz produkt, aby dodać go do listy
+                </Text>
+                {categoryPickerCategory.products.map((product) => (
+                  <TouchableOpacity
+                    key={product}
+                    style={[styles.categoryProductRow, { backgroundColor: colors.rowBg }]}
+                    onPress={() => handleAddFromCategory(product)}
+                    disabled={addingCategoryProduct === product}
+                  >
+                    <Text style={[styles.categoryProductLabel, { color: colors.text }]}>{product}</Text>
+                    {addingCategoryProduct === product ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Text style={[styles.categoryProductAdd, { color: colors.primary }]}>+ Dodaj</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={[styles.editNameButton, styles.editNameButtonPrimary, { backgroundColor: colors.primary, marginTop: 16 }]}
+                  onPress={() => setCategoryPickerCategory(null)}
+                >
+                  <Text style={styles.primaryButtonText}>Gotowe</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -875,6 +967,71 @@ const styles = StyleSheet.create({
   sectionTitleKupione: {
     marginTop: 24,
     color: '#16a34a',
+  },
+  categoriesSection: {
+    marginBottom: 8,
+  },
+  categoriesHint: {
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  categoriesWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  categoryChip: {
+    width: '30%',
+    minWidth: 100,
+    maxWidth: 160,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryChipIcon: {
+    fontSize: 28,
+    marginBottom: 4,
+  },
+  categoryChipLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  categoryPickerCard: {
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignSelf: 'center',
+  },
+  categoryPickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  categoryPickerIcon: {
+    fontSize: 36,
+  },
+  categoryProductRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  categoryProductLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  categoryProductAdd: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   emptyHint: {
     fontSize: 14,

@@ -1,6 +1,6 @@
-# new-p — Shared Grocery Smart-List
+# KupiMY to! — wspólna lista zakupów
 
-Aplikacja mobilna (Expo, React Native) do wspólnej listy zakupów z trybem „W sklepie", synchronizacją w czasie rzeczywistym i powiadomieniami push.
+Aplikacja mobilna (Expo, React Native) do wspólnej listy zakupów z trybem „W sklepie", synchronizacją w czasie rzeczywistym i powiadomieniami push. Projekt **kupiMY-to!**.
 
 ## Struktura
 

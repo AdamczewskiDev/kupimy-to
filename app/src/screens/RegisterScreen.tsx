@@ -13,12 +13,15 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../contexts/ThemeContext';
+import { APP_DISPLAY_NAME, APP_ICON, APP_DESCRIPTION } from '../config/app';
 
 type AuthStackParamList = { Login: undefined; Register: undefined };
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 
 export default function RegisterScreen() {
   const navigation = useNavigation<Nav>();
+  const { colors } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -61,54 +64,70 @@ export default function RegisterScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <Text style={styles.title}>Zarejestruj się</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="E-mail"
-        placeholderTextColor="#999"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        autoComplete="email"
-        editable={!loading}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Hasło (min. 6 znaków)"
-        placeholderTextColor="#999"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoComplete="new-password"
-        editable={!loading}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Potwierdź hasło"
-        placeholderTextColor="#999"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-        autoComplete="new-password"
-        editable={!loading}
-      />
-      <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleRegister}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Zarejestruj się</Text>
-        )}
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('Login')} disabled={loading}>
-        <Text style={styles.linkText}>Masz już konto? Zaloguj się</Text>
-      </TouchableOpacity>
+      <View style={styles.contentWrap}>
+        <View style={styles.brandRow}>
+          <Text style={[styles.appIcon, { color: colors.primary }]}>{APP_ICON}</Text>
+          <Text style={[styles.appName, { color: colors.text }]}>{APP_DISPLAY_NAME}</Text>
+        </View>
+        <Text style={[styles.tagline, { color: colors.textSecondary }]}>{APP_DESCRIPTION}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Zarejestruj się</Text>
+        <TextInput
+          style={[
+            styles.input,
+            { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text },
+          ]}
+          placeholder="E-mail"
+          placeholderTextColor={colors.textSecondary}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          autoComplete="email"
+          editable={!loading}
+        />
+        <TextInput
+          style={[
+            styles.input,
+            { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text },
+          ]}
+          placeholder="Hasło (min. 6 znaków)"
+          placeholderTextColor={colors.textSecondary}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="new-password"
+          editable={!loading}
+        />
+        <TextInput
+          style={[
+            styles.input,
+            { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text },
+          ]}
+          placeholder="Potwierdź hasło"
+          placeholderTextColor={colors.textSecondary}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          autoComplete="new-password"
+          editable={!loading}
+        />
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.primary }, loading && styles.buttonDisabled]}
+          onPress={handleRegister}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.primaryText} />
+          ) : (
+            <Text style={[styles.buttonText, { color: colors.primaryText }]}>Zarejestruj się</Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('Login')} disabled={loading}>
+          <Text style={[styles.linkText, { color: colors.primary }]}>Masz już konto? Zaloguj się</Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -118,7 +137,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#fff',
+  },
+  contentWrap: {
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  appIcon: {
+    fontSize: 32,
+  },
+  appName: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  tagline: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 8,
   },
   title: {
     fontSize: 24,
@@ -128,15 +172,14 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     fontSize: 16,
     marginBottom: 16,
   },
   button: {
-    backgroundColor: '#2563eb',
-    padding: 14,
+    paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
@@ -145,7 +188,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -154,7 +196,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   linkText: {
-    color: '#2563eb',
     fontSize: 14,
   },
 });

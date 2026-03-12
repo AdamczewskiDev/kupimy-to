@@ -1,6 +1,6 @@
 # Shared Grocery Smart-List — plan wdrożenia
 
-Dokumentacja pomysłu i planu wdrożenia aplikacji **„Shared Grocery Smart-List” (Lista, która zna Twój dom)** — wspólna lista zakupów dla domowników z „pamięcią” i trybem „Idę do sklepu”.
+Dokumentacja pomysłu i planu wdrożenia aplikacji **KupiMY to!** (wspólna lista zakupów dla domowników z „pamięcią” i trybem „Idę do sklepu”).
 
 ---
 

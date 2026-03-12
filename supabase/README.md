@@ -1,4 +1,4 @@
-# Supabase – migracje i funkcje (new-p)
+# Supabase – migracje i funkcje (KupiMY to!)
 
 ## Migracje
 
