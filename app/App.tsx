@@ -28,7 +28,9 @@ function MainStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        contentStyle: { flex: 1 },
+        contentStyle: { flex: 1, minHeight: 0 },
+        // Na webie Stack (createStackNavigator) wymaga cardStyle, żeby karta miała flex i ScrollView mógł przewijać
+        ...(Platform.OS === 'web' && { cardStyle: { flex: 1 } }),
       }}
     >
       <Stack.Screen name="Home" component={HomeScreen} options={{ title: APP_DISPLAY_NAME }} />

@@ -1,5 +1,8 @@
--- Tworzenie gospodarstwa przez RPC (SECURITY DEFINER omija RLS).
--- Uruchom w Supabase → SQL Editor → Run.
+-- LEGACY: Tworzenie gospodarstwa przez RPC (SECURITY DEFINER omija RLS).
+-- Ta wersja definiuje create_household(text) bez nazwy. Aplikacja wywołuje
+-- create_household(p_invite_code, p_name) z migracji 20260311130000_household_name_and_in_store_options.sql.
+-- Nie uruchamiaj tego skryptu na bazie, na której już zastosowano migracje –
+-- użyj migracji zamiast tego pliku.
 
 CREATE OR REPLACE FUNCTION create_household(p_invite_code text)
 RETURNS TABLE(id uuid, invite_code text)

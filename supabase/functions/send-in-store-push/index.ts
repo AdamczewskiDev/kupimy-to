@@ -1,11 +1,13 @@
 // Send push notifications to household members when someone starts "W sklepie".
-// Invoked from client after startSession(). Requires FCM_SERVER_KEY (legacy) or FCM v1 credentials.
+// Invoked from client after startSession(). Requires FCM_SERVER_KEY. Verifies JWT: caller must be shopperUserId.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { getAuthenticatedUserId } from '../_shared/auth.ts';
+import { sendPushToHouseholdExceptUser } from '../_shared/push.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const fcmServerKey = Deno.env.get('FCM_SERVER_KEY'); // Legacy server key (Firebase Console → Project settings → Cloud Messaging)
+const fcmServerKey = Deno.env.get('FCM_SERVER_KEY');
 
 interface InvokeBody {
   householdId: string;
@@ -19,6 +21,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const userId = await getAuthenticatedUserId(req);
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const body = (await req.json()) as InvokeBody;
     const { householdId, shopperUserId, countdownMinutes } = body;
     if (!householdId || !shopperUserId || countdownMinutes == null) {
@@ -27,34 +36,20 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { data: members } = await supabase
-      .from('household_members')
-      .select('user_id')
-      .eq('household_id', householdId)
-      .neq('user_id', shopperUserId);
-
-    const userIds = (members ?? []).map((r) => r.user_id);
-    if (userIds.length === 0) {
-      return new Response(JSON.stringify({ sent: 0 }), {
+    if (userId !== shopperUserId) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { data: tokens } = await supabase
-      .from('push_tokens')
-      .select('token')
-      .in('user_id', userIds);
-
-    const fcmTokens = (tokens ?? []).map((r) => r.token).filter(Boolean);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const fcmTokens = await sendPushToHouseholdExceptUser(supabase, householdId, shopperUserId);
     if (fcmTokens.length === 0) {
       return new Response(JSON.stringify({ sent: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
     if (!fcmServerKey) {
       console.warn('FCM_SERVER_KEY not set – skipping push send');
       return new Response(JSON.stringify({ sent: 0, skipped: true }), {

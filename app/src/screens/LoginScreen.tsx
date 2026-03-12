@@ -68,6 +68,7 @@ export default function LoginScreen() {
           keyboardType="email-address"
           autoComplete="email"
           editable={!loading}
+          accessibilityLabel="E-mail"
         />
         <TextInput
           style={[
@@ -81,11 +82,13 @@ export default function LoginScreen() {
           secureTextEntry
           autoComplete="password"
           editable={!loading}
+          accessibilityLabel="Hasło"
         />
         <TouchableOpacity
           style={[styles.button, { backgroundColor: colors.primary }, loading && styles.buttonDisabled]}
           onPress={handleLogin}
           disabled={loading}
+          accessibilityLabel="Zaloguj się"
         >
           {loading ? (
             <ActivityIndicator color={colors.primaryText} />

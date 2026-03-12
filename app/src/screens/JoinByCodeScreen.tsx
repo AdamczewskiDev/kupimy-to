@@ -13,9 +13,12 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { useHousehold } from '../hooks/useHousehold';
+import { useTheme } from '../contexts/ThemeContext';
+import { INVITE_CODE_MAX_LENGTH } from '../config/constants';
 
 export default function JoinByCodeScreen() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const { user } = useAuth();
   const { joinHouseholdByCode } = useHousehold(user ?? null);
   const [code, setCode] = useState('');
@@ -37,35 +40,41 @@ export default function JoinByCodeScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <Text style={styles.title}>Dołącz do gospodarstwa</Text>
-      <Text style={styles.hint}>Wpisz kod zaproszenia od domownika (np. ABC123).</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Kod zaproszenia"
-        placeholderTextColor="#999"
-        value={code}
-        onChangeText={(t) => setCode(t.toUpperCase())}
-        autoCapitalize="characters"
-        autoCorrect={false}
-        maxLength={12}
-        editable={!joining}
-      />
-      <TouchableOpacity
-        style={[styles.primaryButton, (joining || !code.trim()) && styles.buttonDisabled]}
-        onPress={handleJoin}
-        disabled={joining || !code.trim()}
-      >
-        {joining ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.primaryButtonText}>Dołącz</Text>
-        )}
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => navigation.goBack()} disabled={joining}>
-        <Text style={styles.buttonText}>Anuluj</Text>
-      </TouchableOpacity>
+      <View style={styles.contentWrap}>
+        <Text style={[styles.title, { color: colors.text }]}>Dołącz do gospodarstwa</Text>
+        <Text style={[styles.hint, { color: colors.textSecondary }]}>
+          Wpisz kod zaproszenia od domownika (np. ABC123).
+        </Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
+          placeholder="Kod zaproszenia"
+          placeholderTextColor={colors.textSecondary}
+          value={code}
+          onChangeText={(t) => setCode(t.toUpperCase())}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={INVITE_CODE_MAX_LENGTH}
+          editable={!joining}
+          accessibilityLabel="Kod zaproszenia"
+        />
+        <TouchableOpacity
+          style={[styles.primaryButton, { backgroundColor: colors.primary }, (joining || !code.trim()) && styles.buttonDisabled]}
+          onPress={handleJoin}
+          disabled={joining || !code.trim()}
+          accessibilityLabel="Dołącz do gospodarstwa"
+        >
+          {joining ? (
+            <ActivityIndicator color={colors.primaryText} />
+          ) : (
+            <Text style={[styles.primaryButtonText, { color: colors.primaryText }]}>Dołącz</Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => navigation.goBack()} disabled={joining} accessibilityLabel="Anuluj">
+          <Text style={[styles.buttonText, { color: colors.primary }]}>Anuluj</Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -75,7 +84,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#fff',
+  },
+  contentWrap: {
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
   },
   title: {
     fontSize: 22,
@@ -85,13 +98,11 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 20,
     textAlign: 'center',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     padding: 14,
     fontSize: 18,
@@ -100,14 +111,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   primaryButton: {
-    backgroundColor: '#2563eb',
     padding: 14,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
   },
   primaryButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -121,7 +130,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   buttonText: {
-    color: '#2563eb',
     fontSize: 16,
   },
 });

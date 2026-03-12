@@ -86,6 +86,7 @@ export default function RegisterScreen() {
           keyboardType="email-address"
           autoComplete="email"
           editable={!loading}
+          accessibilityLabel="E-mail"
         />
         <TextInput
           style={[
@@ -99,6 +100,7 @@ export default function RegisterScreen() {
           secureTextEntry
           autoComplete="new-password"
           editable={!loading}
+          accessibilityLabel="Hasło"
         />
         <TextInput
           style={[
@@ -112,11 +114,13 @@ export default function RegisterScreen() {
           secureTextEntry
           autoComplete="new-password"
           editable={!loading}
+          accessibilityLabel="Potwierdź hasło"
         />
         <TouchableOpacity
           style={[styles.button, { backgroundColor: colors.primary }, loading && styles.buttonDisabled]}
           onPress={handleRegister}
           disabled={loading}
+          accessibilityLabel="Zarejestruj się"
         >
           {loading ? (
             <ActivityIndicator color={colors.primaryText} />

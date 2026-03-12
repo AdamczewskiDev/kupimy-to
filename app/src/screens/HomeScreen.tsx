@@ -12,8 +12,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,6 +25,11 @@ import { useInStoreSession } from '../hooks/useInStoreSession';
 import { usePushTokenRegistration } from '../hooks/usePushTokenRegistration';
 import { supabase } from '../lib/supabase';
 import { APP_DISPLAY_NAME, APP_ICON } from '../config/app';
+import {
+  WARNING_COUNTDOWN_MINUTES,
+  AUTO_IN_STORE_MINUTES,
+  INVITE_CODE_MAX_LENGTH,
+} from '../config/constants';
 import { useTheme } from '../contexts/ThemeContext';
 import { SHOPPING_CATEGORIES } from '../data/shoppingCategories';
 import type { ShoppingCategory } from '../data/shoppingCategories';
@@ -34,6 +41,9 @@ export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const { user, signOut } = useAuth();
   const { colors, isDark, toggleTheme } = useTheme();
+  const { height: windowHeight } = useWindowDimensions();
+  const headerHeight = useHeaderHeight();
+  const scrollAreaHeight = Math.max(200, windowHeight - headerHeight);
   const { household, isLoading, error, createHousehold, updateHouseholdName, refetch } = useHousehold(user ?? null);
   const { todoItems, boughtItems, isLoading: listLoading, error: listError, refetch: refetchList, addItem, removeItem, markAsBought, markAsTodo } = useListItems(household?.id ?? null);
   const { activeSession, countdownRemainingSeconds, startSession, endSession, isLoading: sessionLoading } = useInStoreSession(household?.id ?? null, user?.id ?? null);
@@ -100,6 +110,7 @@ export default function HomeScreen() {
             onPress={() => setMenuVisible(true)}
             style={{ paddingHorizontal: 16, paddingVertical: 8 }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Menu"
           >
             <Text style={{ fontSize: 22, color: colors.primary }}>☰</Text>
           </TouchableOpacity>
@@ -247,7 +258,7 @@ export default function HomeScreen() {
       // Best-effort
     }
     setStartingWarning(false);
-    setWarningCountdownUntil(Date.now() + 15 * 60 * 1000);
+    setWarningCountdownUntil(Date.now() + WARNING_COUNTDOWN_MINUTES * 60 * 1000);
   };
 
   const cancelWarningCountdown = () => setWarningCountdownUntil(null);
@@ -257,7 +268,7 @@ export default function HomeScreen() {
     const interval = setInterval(() => {
       if (Date.now() >= warningCountdownUntil) {
         setWarningCountdownUntil(null);
-        runStartSession(25, true);
+        runStartSession(AUTO_IN_STORE_MINUTES, true);
       }
     }, 1000);
     return () => clearInterval(interval);
@@ -329,7 +340,7 @@ export default function HomeScreen() {
           value={createCode}
           onChangeText={(t) => setCreateCode(t.toUpperCase())}
           autoCapitalize="characters"
-          maxLength={12}
+          maxLength={INVITE_CODE_MAX_LENGTH}
           editable={!creating}
         />
         <TouchableOpacity
@@ -358,7 +369,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={styles.screenWrap}>
+    <View style={[styles.screenWrap, Platform.OS === 'web' && styles.screenWrapWeb, { height: scrollAreaHeight }]}>
     <ScrollView
       style={[styles.scroll, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.scrollContent}
@@ -395,7 +406,7 @@ export default function HomeScreen() {
           <Text style={styles.countdownText}>
             Pozostało na dopisanie: {formatCountdown(warningRemainingSeconds)}
           </Text>
-          <Text style={styles.hint}>Potem automatycznie włączy się „W sklepie" na 25 min.</Text>
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>Potem automatycznie włączy się „W sklepie" na {AUTO_IN_STORE_MINUTES} min.</Text>
           <TouchableOpacity style={styles.cancelWarningButton} onPress={cancelWarningCountdown}>
             <Text style={styles.cancelWarningButtonText}>Anuluj</Text>
           </TouchableOpacity>
@@ -406,6 +417,7 @@ export default function HomeScreen() {
             style={[styles.inStoreButton, startingSession && styles.buttonDisabled]}
             onPress={handleStartInStore}
             disabled={startingSession}
+            accessibilityLabel="W sklepie"
           >
             {startingSession ? (
               <ActivityIndicator color="#fff" />
@@ -417,6 +429,7 @@ export default function HomeScreen() {
             style={[styles.goingSoonButton, startingWarning && styles.buttonDisabled]}
             onPress={handleGoingSoon}
             disabled={startingWarning}
+            accessibilityLabel="Za chwilę idę na zakupy"
           >
             {startingWarning ? (
               <ActivityIndicator color="#fff" size="small" />
@@ -450,6 +463,7 @@ export default function HomeScreen() {
                     style={[styles.categoryChip, { backgroundColor: colors.rowBg, borderColor: colors.border }]}
                     onPress={() => setCategoryPickerCategory(cat)}
                     activeOpacity={0.7}
+                    accessibilityLabel={`Kategoria: ${cat.name}`}
                   >
                     <Text style={styles.categoryChipIcon}>{cat.icon}</Text>
                     <Text style={[styles.categoryChipLabel, { color: colors.text }]} numberOfLines={2}>
@@ -478,11 +492,13 @@ export default function HomeScreen() {
                 onSubmitEditing={handleAddItem}
                 returnKeyType="done"
                 editable={!adding}
+                accessibilityLabel="Nazwa pozycji do dodania"
               />
               <TouchableOpacity
                 style={[styles.addButton, adding && styles.buttonDisabled, { backgroundColor: colors.primary }]}
                 onPress={handleAddItem}
                 disabled={adding || !newItemLabel.trim()}
+                accessibilityLabel="Dodaj pozycję"
               >
                 {adding ? (
                   <ActivityIndicator size="small" color={colors.primaryText} />
@@ -502,6 +518,7 @@ export default function HomeScreen() {
                   style={styles.markBoughtButton}
                   onPress={() => handleMarkAsBought(item.id)}
                   disabled={markingId === item.id}
+                  accessibilityLabel={`Odhacz: ${item.label}`}
                 >
                   {markingId === item.id ? (
                     <ActivityIndicator size="small" color="#16a34a" />
@@ -513,6 +530,7 @@ export default function HomeScreen() {
                   style={styles.deleteButton}
                   onPress={() => handleRemoveItem(item)}
                   disabled={deletingId === item.id}
+                  accessibilityLabel={`Usuń: ${item.label}`}
                 >
                   {deletingId === item.id ? (
                     <ActivityIndicator size="small" color="#b91c1c" />
@@ -767,6 +785,10 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screenWrap: {
     flex: 1,
+    minHeight: 0,
+  },
+  screenWrapWeb: {
+    minHeight: '100vh',
   },
   container: {
     flex: 1,
@@ -775,8 +797,10 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+    minHeight: 0,
   },
   scrollContent: {
+    flexGrow: 1,
     padding: 24,
     paddingBottom: 48,
   },

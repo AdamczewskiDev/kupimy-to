@@ -25,7 +25,7 @@ Migracje znajdują się w `supabase/migrations/`. Konwencja nazw: `YYYYMMDDHHmms
 
 Szczegóły: [Supabase CLI – Local Development](https://supabase.com/docs/guides/cli/local-development#database-migrations).
 
-**Bez CLI:** Skopiuj zawartość pliku `migrations/20250311000000_household_name_and_in_store_options.sql` do Supabase → SQL Editor → Run (dodaje kolumnę `name` do households, `block_adding` do in_store_sessions oraz funkcje `create_household` z nazwą i `update_household_name`). Nową Edge Function **send-shopping-warning-push** wdróż przez Dashboard lub CLI.
+**Bez CLI:** Skopiuj zawartość plików migracji w kolejności nazw (np. `20260311100000_initial_schema.sql` → … → `20260311130000_household_name_and_in_store_options.sql`) do Supabase → SQL Editor → Run. Edge Functions wdróż przez Dashboard lub CLI.
 
 ### Obecny schemat (Story 1.2)
 
@@ -46,6 +46,10 @@ Na wszystkich tabelach włączone jest RLS; dostęp mają tylko użytkownicy bę
 
 - **send-in-store-push** – wywoływana z klienta po włączeniu „W sklepie”; wysyła powiadomienia FCM do pozostałych członków gospodarstwa.
 - **send-shopping-warning-push** – wywoływana po „Za chwilę idę na zakupy!”; wysyła do domowników powiadomienie „Masz 15 minut na dodanie produktów”.
+
+Obie funkcje **weryfikują JWT** z nagłówka `Authorization`: wywołujący musi być zalogowany i jego `auth.uid()` musi zgadzać się z `shopperUserId` / `senderUserId` z body (401/403 w przeciwnym razie). Wymagany jest sekret **SUPABASE_ANON_KEY** (anon key projektu), żeby weryfikować token użytkownika – dodaj go w Dashboard → Project Settings → Edge Functions → Secrets (obok `FCM_SERVER_KEY`).
+
+Współdzielone moduły w `functions/_shared/`: `cors.ts`, `auth.ts` (weryfikacja JWT), `push.ts` (pobieranie tokenów FCM członków gospodarstwa).
 
 ### Konfiguracja push (FCM)
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { ListItem } from '../types/list';
 
@@ -55,6 +55,8 @@ export function useListItems(householdId: string | null): UseListItemsResult {
     setIsLoading(false);
   }, [householdId]);
 
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
   useEffect(() => {
     if (!householdId) {
       setItems([]);
@@ -62,10 +64,11 @@ export function useListItems(householdId: string | null): UseListItemsResult {
       return undefined;
     }
 
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
 
     fetchItems().then(() => {
-      channel = supabase
+      if (cancelled) return;
+      const ch = supabase
         .channel(`list_items:${householdId}`)
         .on(
           'postgres_changes',
@@ -92,11 +95,17 @@ export function useListItems(householdId: string | null): UseListItemsResult {
             }
           }
         );
-      channel.subscribe();
+      channelRef.current = ch;
+      ch.subscribe();
     });
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      cancelled = true;
+      const ch = channelRef.current;
+      if (ch) {
+        supabase.removeChannel(ch);
+        channelRef.current = null;
+      }
     };
   }, [householdId, fetchItems]);
 

@@ -1,14 +1,15 @@
 // Push: "Za chwilę idę na zakupy! Masz 15 minut na dodanie produktów." – do wszystkich oprócz nadawcy.
+// Verifies JWT: caller must be senderUserId.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from '../_shared/cors.ts';
+import { getAuthenticatedUserId } from '../_shared/auth.ts';
+import { sendPushToHouseholdExceptUser } from '../_shared/push.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const fcmServerKey = Deno.env.get('FCM_SERVER_KEY');
+
+const WARNING_MINUTES = 15;
 
 interface InvokeBody {
   householdId: string;
@@ -21,6 +22,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const userId = await getAuthenticatedUserId(req);
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const body = (await req.json()) as InvokeBody;
     const { householdId, senderUserId } = body;
     if (!householdId || !senderUserId) {
@@ -29,34 +37,20 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { data: members } = await supabase
-      .from('household_members')
-      .select('user_id')
-      .eq('household_id', householdId)
-      .neq('user_id', senderUserId);
-
-    const userIds = (members ?? []).map((r) => r.user_id);
-    if (userIds.length === 0) {
-      return new Response(JSON.stringify({ sent: 0 }), {
+    if (userId !== senderUserId) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { data: tokens } = await supabase
-      .from('push_tokens')
-      .select('token')
-      .in('user_id', userIds);
-
-    const fcmTokens = (tokens ?? []).map((r) => r.token).filter(Boolean);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const fcmTokens = await sendPushToHouseholdExceptUser(supabase, householdId, senderUserId);
     if (fcmTokens.length === 0) {
       return new Response(JSON.stringify({ sent: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
     if (!fcmServerKey) {
       console.warn('FCM_SERVER_KEY not set – skipping push send');
       return new Response(JSON.stringify({ sent: 0, skipped: true }), {
@@ -65,7 +59,7 @@ Deno.serve(async (req) => {
     }
 
     const title = 'Za chwilę idę na zakupy!';
-    const bodyText = 'Masz 15 minut na dodanie produktów.';
+    const bodyText = `Masz ${WARNING_MINUTES} minut na dodanie produktów.`;
 
     let sent = 0;
     for (const token of fcmTokens) {
