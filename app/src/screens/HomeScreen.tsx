@@ -12,10 +12,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
-  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../contexts/AuthContext';
@@ -41,9 +40,8 @@ export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const { user, signOut } = useAuth();
   const { colors, isDark, toggleTheme } = useTheme();
-  const { height: windowHeight } = useWindowDimensions();
-  const headerHeight = useHeaderHeight();
-  const scrollAreaHeight = Math.max(200, windowHeight - headerHeight);
+  const insets = useSafeAreaInsets();
+  const scrollBottomPadding = 96 + insets.bottom;
   const { household, isLoading, error, createHousehold, updateHouseholdName, refetch } = useHousehold(user ?? null);
   const { todoItems, boughtItems, isLoading: listLoading, error: listError, refetch: refetchList, addItem, removeItem, markAsBought, markAsTodo } = useListItems(household?.id ?? null);
   const { activeSession, countdownRemainingSeconds, startSession, endSession, isLoading: sessionLoading } = useInStoreSession(household?.id ?? null, user?.id ?? null);
@@ -369,10 +367,10 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={[styles.screenWrap, Platform.OS === 'web' && styles.screenWrapWeb, { height: scrollAreaHeight }]}>
+    <View style={styles.screenWrap}>
     <ScrollView
       style={[styles.scroll, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPadding }]}
       showsVerticalScrollIndicator={true}
       bounces={true}
       keyboardShouldPersistTaps="handled"
@@ -786,9 +784,6 @@ const styles = StyleSheet.create({
   screenWrap: {
     flex: 1,
     minHeight: 0,
-  },
-  screenWrapWeb: {
-    minHeight: '100vh',
   },
   container: {
     flex: 1,

@@ -3,6 +3,7 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Platform, View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import LoginScreen from './src/screens/LoginScreen';
@@ -74,24 +75,38 @@ function AppContent() {
     },
   };
   return (
-    <NavigationContainer theme={navTheme}>
-      <RootNavigator />
+    <View style={[styles.appRoot, Platform.OS === 'web' && styles.appRootWeb]}>
+      <NavigationContainer theme={navTheme} style={styles.navContainer}>
+        <RootNavigator />
+      </NavigationContainer>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-    </NavigationContainer>
+    </View>
   );
 }
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  appRoot: {
+    flex: 1,
+  },
+  appRootWeb: {
+    minHeight: '100vh',
+    height: '100vh',
+  },
+  navContainer: {
+    flex: 1,
+  },
   loading: {
     flex: 1,
     justifyContent: 'center',
