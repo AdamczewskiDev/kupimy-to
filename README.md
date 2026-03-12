@@ -4,6 +4,8 @@ Aplikacja mobilna (Expo, React Native) do wspólnej listy zakupów z trybem „W
 
 ## Struktura
 
+Projekt to **jedno repozytorium Git** (katalog główny z `app/`, `supabase/`, `docs/`). W Cursorze/VS Code otwórz **cały folder projektu** (ten z `app` i `supabase`), a nie osobno podfolder `app` — wtedy w Source Control zobaczysz jedną sekcję Git zamiast dwóch.
+
 - **`app/`** — aplikacja Expo (TypeScript). Uruchomienie: `cd app && npm install && npm run start`. Konfiguracja: [app/README.md](app/README.md).
 - **`supabase/`** — migracje bazy, Edge Functions (push). Opis i konfiguracja: [supabase/README.md](supabase/README.md).
 - **`docs/`** — dokumentacja planu i wymagań.
