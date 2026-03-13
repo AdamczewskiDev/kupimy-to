@@ -14,3 +14,7 @@ export const INVITE_CODE_MAX_LENGTH = 12;
 export const LIST_ITEM_UNITS = ['szt', 'kg', 'g', 'l', 'ml', 'opak'] as const;
 export type ListItemUnit = (typeof LIST_ITEM_UNITS)[number];
 export const DEFAULT_LIST_ITEM_UNIT: ListItemUnit = 'szt';
+
+/** Wymiary treści ekranów – spójne z ekranem głównym i logowaniem (maxWidth 560, padding 16). */
+export const SCREEN_CONTENT_MAX_WIDTH = 560;
+export const SCREEN_PADDING_HORIZONTAL = 16;

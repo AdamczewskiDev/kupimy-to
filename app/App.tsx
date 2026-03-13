@@ -10,6 +10,8 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import JoinByCodeScreen from './src/screens/JoinByCodeScreen';
+import RecipesScreen from './src/screens/RecipesScreen';
+import RecipeDetailScreen from './src/screens/RecipeDetailScreen';
 import { APP_DISPLAY_NAME } from './src/config/app';
 
 const NativeStack = createNativeStackNavigator();
@@ -39,6 +41,16 @@ function MainStack() {
         name="JoinByCode"
         component={JoinByCodeScreen}
         options={{ title: 'Dołącz do gospodarstwa' }}
+      />
+      <Stack.Screen
+        name="Recipes"
+        component={RecipesScreen}
+        options={{ title: 'Przepisy' }}
+      />
+      <Stack.Screen
+        name="RecipeDetail"
+        component={RecipeDetailScreen}
+        options={({ route }) => ({ title: route.params.recipe.name })}
       />
     </Stack.Navigator>
   );

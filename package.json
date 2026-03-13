@@ -4,6 +4,11 @@
   "description": "KupiMY to! — wspólna lista zakupów z trybem W sklepie",
   "scripts": {
     "verify": "cd app && npx tsc --noEmit",
-    "start": "cd app && npm run start"
+    "start": "cd app && npm run start",
+    "seed:translate": "node scripts/translate-seed-to-polish.js",
+    "seed:split": "node scripts/split-seed-themealdb.js"
+  },
+  "devDependencies": {
+    "google-translate-api-x": "^10.7.2"
   }
 }

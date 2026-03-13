@@ -2,18 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { RecipeWithIngredients, RecipeIngredient, RecipeStep } from '../types/recipe';
 
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, ' ');
-}
-
-/** Dla danej listy etykiet (z listy zakupów) zwraca przepisy, których co najmniej minMatches składników pasuje do listy. */
-export function useSuggestedRecipes(
-  listLabels: string[],
-  minMatches: number = 2
-): { suggested: RecipeWithIngredients[]; isLoading: boolean; error: string | null } {
+export function useRecipes(): {
+  recipes: RecipeWithIngredients[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+} {
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +16,7 @@ export function useSuggestedRecipes(
     setError(null);
     const { data: recipesData, error: e1 } = await supabase
       .from('recipes')
-      .select('id, name, description, created_at, meal_type, servings, calories_per_serving, protein_per_serving_g, fat_per_serving_g, carbs_per_serving_g')
+      .select('id, name, description, created_at, meal_type, servings, source, language, calories_per_serving, protein_per_serving_g, fat_per_serving_g, carbs_per_serving_g')
       .order('name');
 
     if (e1) {
@@ -73,12 +67,12 @@ export function useSuggestedRecipes(
       stepsByRecipe.set(s.recipe_id, list);
     }
 
-    const listNormalized = new Set(listLabels.map(normalize));
-
-    const withIngredients: RecipeWithIngredients[] = (recipesData ?? []).map((r: Record<string, unknown>) => ({
+    const result: RecipeWithIngredients[] = (recipesData ?? []).map((r: Record<string, unknown>) => ({
       ...r,
       description: r.description ?? null,
       meal_type: r.meal_type === 'breakfast' || r.meal_type === 'lunch' || r.meal_type === 'afternoon_snack' ? r.meal_type : null,
+      source: r.source === 'themealdb' || r.source === 'wikikuchnia' ? r.source : null,
+      language: r.language === 'en' || r.language === 'pl' ? r.language : null,
       servings: typeof r.servings === 'number' ? r.servings : 4,
       calories_per_serving: r.calories_per_serving != null ? Number(r.calories_per_serving) : null,
       protein_per_serving_g: r.protein_per_serving_g != null ? Number(r.protein_per_serving_g) : null,
@@ -88,20 +82,13 @@ export function useSuggestedRecipes(
       steps: (stepsByRecipe.get(r.id as string) ?? []).sort((a, b) => a.position - b.position),
     }));
 
-    const suggested = withIngredients.filter((r) => {
-      const matchCount = r.ingredients.filter((ing) =>
-        listNormalized.has(normalize(ing.ingredient_label))
-      ).length;
-      return matchCount >= minMatches;
-    });
-
-    setRecipes(suggested);
+    setRecipes(result);
     setIsLoading(false);
-  }, [listLabels.join(','), minMatches]);
+  }, []);
 
   useEffect(() => {
     fetchRecipes();
   }, [fetchRecipes]);
 
-  return { suggested: recipes, isLoading, error };
+  return { recipes, isLoading, error, refetch: fetchRecipes };
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,11 @@ import {
   ScrollView,
   TextInput,
   Modal,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   Switch,
+  Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,17 +36,23 @@ import {
 } from '../config/constants';
 import type { ListItem } from '../types/list';
 import type { RecipeWithIngredients, RecipeIngredient } from '../types/recipe';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, THEME_PRESETS } from '../contexts/ThemeContext';
 import { SHOPPING_CATEGORIES } from '../data/shoppingCategories';
 import type { ShoppingCategory } from '../data/shoppingCategories';
+import { getProductQuantityDefault, UNITS_BY_MODE, getStepForUnit } from '../data/productQuantityDefaults';
+import { groupListByCategory } from '../lib/groupListByCategory';
+import { groupListByRecipe } from '../lib/groupListByRecipe';
+import { scaleIngredientQuantity } from '../lib/recipeServings';
+import { useRecipes } from '../hooks/useRecipes';
+import { computeRecipeCalories } from '../data/ingredientCalories';
 
-type MainStackParamList = { Home: undefined; JoinByCode: undefined };
+import type { MainStackParamList } from '../navigation/types';
 type Nav = NativeStackNavigationProp<MainStackParamList, 'Home'>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const { user, signOut } = useAuth();
-  const { colors, isDark, toggleTheme } = useTheme();
+  const { colors, theme: themeId, setTheme, toggleLightDark, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const scrollBottomPadding = 96 + insets.bottom;
   const { household, isLoading, error, createHousehold, updateHouseholdName, refetch } = useHousehold(user ?? null);
@@ -75,13 +83,27 @@ export default function HomeScreen() {
   const [inStoreBlockAdding, setInStoreBlockAdding] = useState(true);
   const [categoryPickerCategory, setCategoryPickerCategory] = useState<ShoppingCategory | null>(null);
   const [addingCategoryProduct, setAddingCategoryProduct] = useState<string | null>(null);
+  /** Ilość i jednostka per produkt w pickerze kategorii (klucz: productLabel). */
+  const [categoryProductForm, setCategoryProductForm] = useState<Record<string, { quantity: string; unit: string }>>({});
   const { suggested: suggestedRecipes, isLoading: suggestedRecipesLoading } = useSuggestedRecipes(
     todoItems.map((i) => i.label),
     2
   );
   const [recipeModalRecipe, setRecipeModalRecipe] = useState<RecipeWithIngredients | null>(null);
   const [recipeModalSelectedIds, setRecipeModalSelectedIds] = useState<Set<string>>(new Set());
+  const [recipeModalDesiredServings, setRecipeModalDesiredServings] = useState(4);
   const [addingRecipeIngredients, setAddingRecipeIngredients] = useState(false);
+  const [listGroupBy, setListGroupBy] = useState<'category' | 'recipe' | 'alphabet'>('category');
+  const [categoriesPanelOpen, setCategoriesPanelOpen] = useState(false);
+
+  const { recipes } = useRecipes();
+  const recipeIdToName = useMemo(() => new Map(recipes.map((r) => [r.id, r.name])), [recipes]);
+
+  const drawRandomRecipe = () => {
+    if (suggestedRecipes.length === 0) return;
+    const random = suggestedRecipes[Math.floor(Math.random() * suggestedRecipes.length)];
+    openRecipeModal(random);
+  };
 
   const handleCreateHousehold = async () => {
     const name = createName.trim();
@@ -110,12 +132,12 @@ export default function HomeScreen() {
         headerTitleAlign: 'center',
         headerLeft: () => (
           <TouchableOpacity
-            onPress={toggleTheme}
+            onPress={toggleLightDark}
             style={{ paddingHorizontal: 16, paddingVertical: 8 }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityLabel={isDark ? 'Motyw jasny' : 'Motyw ciemny'}
           >
-            <Text style={{ fontSize: 22, color: colors.primary }}>{isDark ? '☀️' : '🌙'}</Text>
+            <Text style={{ fontSize: 22, color: colors.primary }}>{isDark ? '🌙' : '☀️'}</Text>
           </TouchableOpacity>
         ),
         headerRight: () => (
@@ -130,7 +152,7 @@ export default function HomeScreen() {
         ),
       });
     }
-  }, [household, navigation, colors.primary, colors.text, isDark, toggleTheme]);
+  }, [household, navigation, colors.primary, colors.text, isDark, toggleLightDark]);
 
   const handleCopyCode = async () => {
     if (!household?.invite_code) return;
@@ -170,6 +192,7 @@ export default function HomeScreen() {
   const openRecipeModal = (recipe: RecipeWithIngredients) => {
     setRecipeModalRecipe(recipe);
     setRecipeModalSelectedIds(new Set(recipe.ingredients.map((i) => i.id)));
+    setRecipeModalDesiredServings(recipe.servings ?? 4);
   };
 
   const toggleRecipeIngredient = (id: string) => {
@@ -185,12 +208,54 @@ export default function HomeScreen() {
     if (!recipeModalRecipe || isAddBlocked) return;
     const toAdd = recipeModalRecipe.ingredients.filter((ing) => recipeModalSelectedIds.has(ing.id));
     if (toAdd.length === 0) return;
+    const recipeServings = recipeModalRecipe.servings ?? 4;
+    const desired = recipeModalDesiredServings;
     setAddingRecipeIngredients(true);
     for (const ing of toAdd) {
-      await addItem(ing.ingredient_label, ing.quantity, ing.unit);
+      const qty = scaleIngredientQuantity(ing.quantity, ing.unit, desired, recipeServings);
+      await addItem(ing.ingredient_label, qty, ing.unit, recipeModalRecipe.id);
     }
     setAddingRecipeIngredients(false);
     setRecipeModalRecipe(null);
+  };
+
+  const getCategoryProductForm = (productLabel: string) => {
+    const def = getProductQuantityDefault(productLabel);
+    const allowed = UNITS_BY_MODE[def.unitMode];
+    const saved = categoryProductForm[productLabel];
+    if (saved && allowed.includes(saved.unit)) {
+      return { quantity: saved.quantity, unit: saved.unit, allowedUnits: allowed };
+    }
+    return {
+      quantity: String(def.defaultQuantity),
+      unit: def.defaultUnit,
+      allowedUnits: allowed,
+    };
+  };
+
+  const setCategoryProductQtyUnit = (productLabel: string, quantity: string, unit: string) => {
+    setCategoryProductForm((prev) => ({ ...prev, [productLabel]: { quantity, unit } }));
+  };
+
+  const setCategoryProductUnit = (productLabel: string, newUnit: string) => {
+    const { quantity, unit: oldUnit } = getCategoryProductForm(productLabel);
+    const num = parseFloat(quantity.replace(',', '.')) || 0;
+    let newQty = num;
+    if (oldUnit === 'g' && newUnit === 'kg') newQty = num / 1000;
+    else if (oldUnit === 'kg' && newUnit === 'g') newQty = num * 1000;
+    else if (oldUnit === 'ml' && newUnit === 'l') newQty = num / 1000;
+    else if (oldUnit === 'l' && newUnit === 'ml') newQty = num * 1000;
+    const str = newQty % 1 === 0 ? String(Math.round(newQty)) : String(Math.round(newQty * 1000) / 1000);
+    setCategoryProductQtyUnit(productLabel, str, newUnit);
+  };
+
+  const adjustCategoryProductQty = (productLabel: string, delta: number) => {
+    const { quantity, unit } = getCategoryProductForm(productLabel);
+    const step = getStepForUnit(unit);
+    const num = parseFloat(quantity.replace(',', '.')) || 0;
+    const next = Math.max(0, Math.round((num + delta * step) * 1000) / 1000);
+    const nextStr = next % 1 === 0 ? String(next) : String(next);
+    setCategoryProductQtyUnit(productLabel, nextStr, unit);
   };
 
   const handleAddFromCategory = async (productLabel: string) => {
@@ -198,8 +263,12 @@ export default function HomeScreen() {
       Alert.alert('Zakupy w toku', 'Nie możesz teraz dopisywać do listy.');
       return;
     }
+    const { quantity: qStr, unit } = getCategoryProductForm(productLabel);
+    const q = parseFloat(qStr.replace(',', '.'));
+    const quantity = Number.isFinite(q) && q > 0 ? q : 1;
+    const safeUnit = LIST_ITEM_UNITS.includes(unit as typeof LIST_ITEM_UNITS[number]) ? unit : 'szt';
     setAddingCategoryProduct(productLabel);
-    const { error: addError } = await addItem(productLabel, 1, 'szt');
+    const { error: addError } = await addItem(productLabel, quantity, safeUnit);
     setAddingCategoryProduct(null);
     if (addError) Alert.alert('Błąd', addError);
   };
@@ -509,26 +578,38 @@ export default function HomeScreen() {
       ) : (
         <>
           {!isAddBlocked && (
-            <View style={styles.categoriesSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Kategorie</Text>
-              <Text style={[styles.categoriesHint, { color: colors.textSecondary }]}>Kliknij kategorię i wybierz produkt do dodania</Text>
-              <View style={styles.categoriesWrap}>
-                {SHOPPING_CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[styles.categoryChip, { backgroundColor: colors.rowBg, borderColor: colors.border }]}
-                    onPress={() => setCategoryPickerCategory(cat)}
-                    activeOpacity={0.7}
-                    accessibilityLabel={`Kategoria: ${cat.name}`}
-                  >
-                    <Text style={styles.categoryChipIcon}>{cat.icon}</Text>
-                    <Text style={[styles.categoryChipLabel, { color: colors.text }]} numberOfLines={2}>
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+            <>
+              <TouchableOpacity
+                style={[styles.categoriesCollapseRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => setCategoriesPanelOpen((v) => !v)}
+                accessibilityLabel={categoriesPanelOpen ? 'Zwiń kategorie' : 'Dodaj składnik z kategorii'}
+                accessibilityState={{ expanded: categoriesPanelOpen }}
+              >
+                <Text style={[styles.categoriesCollapseLabel, { color: colors.text }]}>Dodaj z kategorii</Text>
+                <Text style={[styles.categoriesCollapseChevron, { color: colors.textSecondary }]}>{categoriesPanelOpen ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+              {categoriesPanelOpen && (
+                <View style={styles.categoriesSection}>
+                  <Text style={[styles.categoriesHint, { color: colors.textSecondary }]}>Kliknij kategorię i wybierz produkt do dodania</Text>
+                  <View style={styles.categoriesWrap}>
+                    {SHOPPING_CATEGORIES.map((cat) => (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[styles.categoryChip, { backgroundColor: colors.rowBg, borderColor: colors.border }]}
+                        onPress={() => setCategoryPickerCategory(cat)}
+                        activeOpacity={0.7}
+                        accessibilityLabel={`Kategoria: ${cat.name}`}
+                      >
+                        <Text style={styles.categoryChipIcon}>{cat.icon}</Text>
+                        <Text style={[styles.categoryChipLabel, { color: colors.text }]} numberOfLines={2}>
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </>
           )}
           {!suggestedRecipesLoading && suggestedRecipes.length > 0 && (
             <View style={styles.suggestedRecipesSection}>
@@ -536,20 +617,63 @@ export default function HomeScreen() {
               <Text style={[styles.categoriesHint, { color: colors.textSecondary }]}>
                 Masz na liście składniki do tych przepisów
               </Text>
+              <TouchableOpacity
+                style={[styles.drawRecipeButton, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                onPress={drawRandomRecipe}
+                accessibilityLabel="Wylosuj przepis na podstawie składników z koszyka"
+              >
+                <Text style={styles.drawRecipeButtonIcon}>🎲</Text>
+                <Text style={[styles.drawRecipeButtonText, { color: colors.primaryText }]}>Wylosuj przepis</Text>
+              </TouchableOpacity>
               <View style={styles.suggestedRecipesWrap}>
-                {suggestedRecipes.map((r) => (
-                  <TouchableOpacity
-                    key={r.id}
-                    style={[styles.recipeChip, { backgroundColor: colors.primaryTint, borderColor: colors.primary }]}
-                    onPress={() => openRecipeModal(r)}
-                    accessibilityLabel={`Przepis: ${r.name}`}
-                  >
-                    <Text style={[styles.recipeChipText, { color: colors.text }]} numberOfLines={2}>{r.name}</Text>
-                  </TouchableOpacity>
-                ))}
+                {suggestedRecipes.map((r) => {
+                  const computed = computeRecipeCalories(r.ingredients, r.servings ?? 4);
+                  return (
+                    <TouchableOpacity
+                      key={r.id}
+                      style={[styles.recipeChip, { backgroundColor: colors.primaryTint, borderColor: colors.primary }]}
+                      onPress={() => openRecipeModal(r)}
+                      accessibilityLabel={`Przepis: ${r.name}`}
+                    >
+                      <Text style={[styles.recipeChipText, { color: colors.text }]} numberOfLines={2}>{r.name}</Text>
+                      {computed != null && (
+                        <Text style={[styles.recipeChipKcal, { color: colors.textSecondary }]}>~{computed.kcalPerServing} kcal/porcję</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           )}
+          <View style={[styles.listSortDivider, { borderTopColor: colors.border }]}>
+            <Text style={[styles.listSortLabel, { color: colors.textSecondary }]}>Sortowanie listy</Text>
+            <View style={styles.listGroupByRow}>
+              <TouchableOpacity
+                style={[styles.listGroupByButton, listGroupBy === 'category' && styles.listGroupByButtonActive, { borderColor: colors.border, backgroundColor: listGroupBy === 'category' ? colors.primaryTint : colors.rowBg }]}
+                onPress={() => setListGroupBy('category')}
+                accessibilityLabel="Grupuj po kategoriach"
+                accessibilityState={{ selected: listGroupBy === 'category' }}
+              >
+                <Text style={[styles.listGroupByLabel, { color: listGroupBy === 'category' ? colors.primary : colors.textSecondary }]}>Po kategoriach</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.listGroupByButton, listGroupBy === 'recipe' && styles.listGroupByButtonActive, { borderColor: colors.border, backgroundColor: listGroupBy === 'recipe' ? colors.primaryTint : colors.rowBg }]}
+                onPress={() => setListGroupBy('recipe')}
+                accessibilityLabel="Grupuj po przepisach"
+                accessibilityState={{ selected: listGroupBy === 'recipe' }}
+              >
+                <Text style={[styles.listGroupByLabel, { color: listGroupBy === 'recipe' ? colors.primary : colors.textSecondary }]}>Po przepisach</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.listGroupByButton, listGroupBy === 'alphabet' && styles.listGroupByButtonActive, { borderColor: colors.border, backgroundColor: listGroupBy === 'alphabet' ? colors.primaryTint : colors.rowBg }]}
+                onPress={() => setListGroupBy('alphabet')}
+                accessibilityLabel="Sortuj alfabetycznie"
+                accessibilityState={{ selected: listGroupBy === 'alphabet' }}
+              >
+                <Text style={[styles.listGroupByLabel, { color: listGroupBy === 'alphabet' ? colors.primary : colors.textSecondary }]}>Alfabetycznie</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Do kupienia</Text>
           {isAddBlocked ? (
             <View style={[styles.addBlockedBlock, { backgroundColor: colors.rowBg }]}>
@@ -616,8 +740,8 @@ export default function HomeScreen() {
           )}
           {todoItems.length === 0 ? (
             <Text style={[styles.emptyHint, { color: colors.textSecondary }]}>Brak pozycji na liście.</Text>
-          ) : (
-            todoItems.map((item) => (
+          ) : listGroupBy === 'alphabet' ? (
+            [...todoItems].sort((a, b) => a.label.localeCompare(b.label, 'pl')).map((item) => (
               <View key={item.id} style={[styles.listRow, { backgroundColor: colors.rowBg }]}>
                 <Text style={[styles.listLabel, { color: colors.text }]}>{formatItemLine(item)}</Text>
                 <TouchableOpacity
@@ -646,13 +770,53 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
             ))
+          ) : (
+            (listGroupBy === 'category' ? groupListByCategory(todoItems) : groupListByRecipe(todoItems, recipeIdToName)).map((group) => (
+              <View key={listGroupBy === 'category' ? (group as { categoryId: string }).categoryId : ((group as { recipeId: string | null }).recipeId ?? '_inne')} style={styles.listGroup}>
+                <View style={styles.listGroupHeader}>
+                  <Text style={styles.listGroupIcon}>{group.icon}</Text>
+                  <Text style={[styles.listGroupTitle, { color: colors.textSecondary }]}>
+                    {listGroupBy === 'category' ? (group as { categoryName: string }).categoryName : (group as { recipeName: string }).recipeName}
+                  </Text>
+                </View>
+                {group.items.map((item) => (
+                  <View key={item.id} style={[styles.listRow, { backgroundColor: colors.rowBg }]}>
+                    <Text style={[styles.listLabel, { color: colors.text }]}>{formatItemLine(item)}</Text>
+                    <TouchableOpacity
+                      style={styles.markBoughtButton}
+                      onPress={() => handleMarkAsBought(item.id)}
+                      disabled={markingId === item.id}
+                      accessibilityLabel={`Odhacz: ${item.label}`}
+                    >
+                      {markingId === item.id ? (
+                        <ActivityIndicator size="small" color="#16a34a" />
+                      ) : (
+                        <Text style={styles.markBoughtButtonText}>Odhacz</Text>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleRemoveItem(item)}
+                      disabled={deletingId === item.id}
+                      accessibilityLabel={`Usuń: ${item.label}`}
+                    >
+                      {deletingId === item.id ? (
+                        <ActivityIndicator size="small" color="#b91c1c" />
+                      ) : (
+                        <Text style={styles.deleteButtonText}>Usuń</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            ))
           )}
 
           <Text style={[styles.sectionTitle, styles.sectionTitleKupione, { color: colors.success }]}>Kupione</Text>
           {boughtItems.length === 0 ? (
             <Text style={[styles.emptyHint, { color: colors.textSecondary }]}>Brak odhaczonych pozycji.</Text>
-          ) : (
-            boughtItems.map((item) => (
+          ) : listGroupBy === 'alphabet' ? (
+            [...boughtItems].sort((a, b) => a.label.localeCompare(b.label, 'pl')).map((item) => (
               <View key={item.id} style={[styles.listRowBought, { backgroundColor: colors.rowBoughtBg }]}>
                 <Text style={[styles.listLabelBought, { color: colors.success }]}>{formatItemLine(item)}</Text>
                 <TouchableOpacity
@@ -679,6 +843,44 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
             ))
+          ) : (
+            (listGroupBy === 'category' ? groupListByCategory(boughtItems) : groupListByRecipe(boughtItems, recipeIdToName)).map((group) => (
+              <View key={`bought-${listGroupBy === 'category' ? (group as { categoryId: string }).categoryId : ((group as { recipeId: string | null }).recipeId ?? '_inne')}`} style={styles.listGroup}>
+                <View style={styles.listGroupHeader}>
+                  <Text style={styles.listGroupIcon}>{group.icon}</Text>
+                  <Text style={[styles.listGroupTitle, { color: colors.textSecondary }]}>
+                    {listGroupBy === 'category' ? (group as { categoryName: string }).categoryName : (group as { recipeName: string }).recipeName}
+                  </Text>
+                </View>
+                {group.items.map((item) => (
+                  <View key={item.id} style={[styles.listRowBought, { backgroundColor: colors.rowBoughtBg }]}>
+                    <Text style={[styles.listLabelBought, { color: colors.success }]}>{formatItemLine(item)}</Text>
+                    <TouchableOpacity
+                      style={styles.boughtActionButton}
+                      onPress={() => handleUnmarkBought(item.id)}
+                      disabled={unmarkingId === item.id}
+                    >
+                      {unmarkingId === item.id ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                      ) : (
+                        <Text style={[styles.boughtActionButtonText, { color: colors.primary }]}>Odznacz</Text>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.boughtActionButton}
+                      onPress={() => handleRemoveBoughtItem(item)}
+                      disabled={deletingBoughtId === item.id}
+                    >
+                      {deletingBoughtId === item.id ? (
+                        <ActivityIndicator size="small" color={colors.error} />
+                      ) : (
+                        <Text style={[styles.boughtActionButtonText, { color: colors.error }]}>Usuń</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            ))
           )}
         </>
       )}
@@ -693,37 +895,71 @@ export default function HomeScreen() {
         onRequestClose={() => setMenuVisible(false)}
       >
         <TouchableOpacity
-          style={[styles.menuOverlay, { backgroundColor: colors.overlay }]}
+          style={[styles.menuOverlay, { backgroundColor: colors.overlay, paddingTop: 56 + insets.top, paddingRight: 12, alignItems: 'flex-end' }]}
           activeOpacity={1}
           onPress={() => setMenuVisible(false)}
         >
-          <View style={[styles.menuCard, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
-            <Text style={[styles.menuTitle, { color: colors.text }]}>Menu</Text>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Kod zaproszenia</Text>
-            <Text style={[styles.code, { color: colors.text }]}>{household.invite_code}</Text>
-            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.primary }]} onPress={() => { handleCopyCode(); setMenuVisible(false); }}>
-              <Text style={styles.primaryButtonText}>Kopiuj kod</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => {
-                setEditNameValue(household.name);
-                setEditNameVisible(true);
-                setMenuVisible(false);
-              }}
-            >
-              <Text style={[styles.linkButtonText, { color: colors.primary }]}>Edytuj nazwę gospodarstwa</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => {
-                setMenuVisible(false);
-                signOut();
-              }}
-            >
-              <Text style={[styles.buttonText, { color: colors.primary }]}>Wyloguj</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.menuDropdownCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            activeOpacity={1}
+            onPress={() => {}}
+          >
+            <View style={styles.menuDropdownSection}>
+              <Text style={[styles.menuDropdownSectionLabel, { color: colors.textSecondary }]}>Kod zaproszenia</Text>
+              <View style={[styles.menuDropdownCodeRow, { backgroundColor: colors.rowBg }]}>
+                <Text style={[styles.menuDropdownCode, { color: colors.text }]}>{household.invite_code}</Text>
+                <TouchableOpacity
+                  style={[styles.menuDropdownCopyBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => { handleCopyCode(); setMenuVisible(false); }}
+                  accessibilityLabel="Kopiuj kod"
+                >
+                  <Text style={styles.menuDropdownCopyBtnText}>Kopiuj</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={[styles.menuDropdownDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.menuDropdownSection}>
+              <Text style={[styles.menuDropdownSectionLabel, { color: colors.textSecondary }]}>Motyw</Text>
+              <View style={styles.menuDropdownThemeGrid}>
+                {THEME_PRESETS.map((p) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    onPress={() => { setTheme(p.id); setMenuVisible(false); }}
+                    style={[styles.menuDropdownThemeBtn, themeId === p.id && styles.menuDropdownThemeBtnActive, { borderColor: colors.border, backgroundColor: themeId === p.id ? colors.primaryTint : colors.rowBg }]}
+                    accessibilityLabel={`Motyw ${p.label}`}
+                    accessibilityState={{ selected: themeId === p.id }}
+                  >
+                    <Text style={styles.menuDropdownThemeIcon}>{p.icon}</Text>
+                    <Text style={[styles.menuDropdownThemeLabel, { color: themeId === p.id ? colors.primary : colors.textSecondary }]}>{p.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={[styles.menuDropdownDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.menuDropdownSection}>
+              <TouchableOpacity
+                style={[styles.menuDropdownItem, { borderBottomColor: colors.border }]}
+                onPress={() => { setMenuVisible(false); navigation.navigate('Recipes'); }}
+              >
+                <Text style={styles.menuDropdownItemIcon}>📖</Text>
+                <Text style={[styles.menuDropdownItemLabel, { color: colors.text }]}>Przepisy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.menuDropdownItem, { borderBottomColor: colors.border }]}
+                onPress={() => { setEditNameValue(household.name); setEditNameVisible(true); setMenuVisible(false); }}
+              >
+                <Text style={styles.menuDropdownItemIcon}>✏️</Text>
+                <Text style={[styles.menuDropdownItemLabel, { color: colors.text }]}>Edytuj nazwę gospodarstwa</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.menuDropdownItem, styles.menuDropdownItemLast]}
+                onPress={() => { setMenuVisible(false); signOut(); }}
+              >
+                <Text style={styles.menuDropdownItemIcon}>🚪</Text>
+                <Text style={[styles.menuDropdownItemLabel, { color: colors.error }]}>Wyloguj</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 
@@ -781,7 +1017,11 @@ export default function HomeScreen() {
           activeOpacity={1}
           onPress={() => setInStoreModalVisible(false)}
         >
-          <View style={[styles.inStoreModalCard, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
+          <TouchableOpacity
+            style={[styles.inStoreModalCard, { backgroundColor: colors.card }]}
+            activeOpacity={1}
+            onPress={() => {}}
+          >
             <Text style={[styles.menuTitle, { color: colors.text }]}>W sklepie</Text>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Czas odliczania</Text>
             <View style={styles.inStoreTimeRow}>
@@ -830,7 +1070,7 @@ export default function HomeScreen() {
                 <Text style={styles.primaryButtonText}>Start</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 
@@ -845,9 +1085,10 @@ export default function HomeScreen() {
           activeOpacity={1}
           onPress={() => setCategoryPickerCategory(null)}
         >
-          <View
+          <TouchableOpacity
             style={[styles.categoryPickerCard, { backgroundColor: colors.card }]}
-            onStartShouldSetResponder={() => true}
+            activeOpacity={1}
+            onPress={() => {}}
           >
             {categoryPickerCategory && (
               <>
@@ -856,23 +1097,78 @@ export default function HomeScreen() {
                   <Text style={[styles.menuTitle, { color: colors.text }]}>{categoryPickerCategory.name}</Text>
                 </View>
                 <Text style={[styles.categoriesHint, { color: colors.textSecondary, marginBottom: 12 }]}>
-                  Wybierz produkt, aby dodać go do listy
+                  Ustaw ilość i jednostkę, potem kliknij Dodaj
                 </Text>
-                {categoryPickerCategory.products.map((product) => (
-                  <TouchableOpacity
-                    key={product}
-                    style={[styles.categoryProductRow, { backgroundColor: colors.rowBg }]}
-                    onPress={() => handleAddFromCategory(product)}
-                    disabled={addingCategoryProduct === product}
-                  >
-                    <Text style={[styles.categoryProductLabel, { color: colors.text }]}>{product}</Text>
-                    {addingCategoryProduct === product ? (
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    ) : (
-                      <Text style={[styles.categoryProductAdd, { color: colors.primary }]}>+ Dodaj</Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
+                <ScrollView
+                  style={styles.categoryPickerScroll}
+                  contentContainerStyle={styles.categoryPickerScrollContent}
+                  showsVerticalScrollIndicator={true}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {categoryPickerCategory.products.map((product) => {
+                    const { quantity, unit, allowedUnits } = getCategoryProductForm(product);
+                    return (
+                      <View key={product} style={[styles.categoryProductBlock, { backgroundColor: colors.rowBg }]}>
+                        <Text style={[styles.categoryProductLabel, { color: colors.text }]}>{product}</Text>
+                        <View style={styles.categoryProductFormRow}>
+                          <View style={styles.categoryProductQtyRow}>
+                            <TouchableOpacity
+                              style={[styles.categoryProductQtyBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
+                              onPress={() => adjustCategoryProductQty(product, -1)}
+                              accessibilityLabel={`Zmniejsz ilość ${product}`}
+                            >
+                              <Text style={[styles.categoryProductQtyBtnText, { color: colors.text }]}>−</Text>
+                            </TouchableOpacity>
+                            <TextInput
+                              style={[styles.categoryProductQtyInput, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
+                              value={quantity}
+                              onChangeText={(t) => setCategoryProductQtyUnit(product, t, unit)}
+                              keyboardType="decimal-pad"
+                              placeholder="Ilość"
+                              placeholderTextColor={colors.textSecondary}
+                              accessibilityLabel={`Ilość dla ${product}`}
+                            />
+                            <TouchableOpacity
+                              style={[styles.categoryProductQtyBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
+                              onPress={() => adjustCategoryProductQty(product, 1)}
+                              accessibilityLabel={`Zwiększ ilość ${product}`}
+                            >
+                              <Text style={[styles.categoryProductQtyBtnText, { color: colors.text }]}>+</Text>
+                            </TouchableOpacity>
+                          </View>
+                          <View style={styles.categoryProductUnitChips}>
+                            {allowedUnits.map((u) => (
+                              <TouchableOpacity
+                                key={u}
+                                style={[
+                                  styles.categoryProductUnitChip,
+                                  unit === u && styles.categoryProductUnitChipActive,
+                                  { backgroundColor: unit === u ? colors.primaryTint : colors.background, borderColor: unit === u ? colors.primary : colors.border },
+                                ]}
+                                onPress={() => setCategoryProductUnit(product, u)}
+                                accessibilityLabel={`Jednostka ${u}`}
+                              >
+                                <Text style={[styles.categoryProductUnitChipText, { color: unit === u ? colors.primary : colors.textSecondary }]}>{u}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                          <TouchableOpacity
+                            style={[styles.categoryProductAddBtn, { backgroundColor: colors.primary }]}
+                            onPress={() => handleAddFromCategory(product)}
+                            disabled={addingCategoryProduct === product}
+                            accessibilityLabel={`Dodaj ${product}`}
+                          >
+                            {addingCategoryProduct === product ? (
+                              <ActivityIndicator size="small" color={colors.primaryText} />
+                            ) : (
+                              <Text style={styles.categoryProductAddBtnText}>Dodaj</Text>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
                 <TouchableOpacity
                   style={[styles.editNameButton, styles.editNameButtonPrimary, { backgroundColor: colors.primary, marginTop: 16 }]}
                   onPress={() => setCategoryPickerCategory(null)}
@@ -881,7 +1177,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </>
             )}
-          </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 
@@ -897,29 +1193,82 @@ export default function HomeScreen() {
           onPress={() => setRecipeModalRecipe(null)}
         >
           <View style={[styles.recipeModalCard, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
-            {recipeModalRecipe && (
+            {recipeModalRecipe && (() => {
+              const recipeServings = recipeModalRecipe.servings ?? 4;
+              const hasNutrition = recipeModalRecipe.calories_per_serving != null || recipeModalRecipe.protein_per_serving_g != null || recipeModalRecipe.fat_per_serving_g != null || recipeModalRecipe.carbs_per_serving_g != null;
+              const computedKcal = computeRecipeCalories(
+                recipeModalRecipe.ingredients.map((i) => ({ ingredient_label: i.ingredient_label, quantity: i.quantity, unit: i.unit })),
+                recipeServings
+              );
+              return (
               <>
                 <Text style={[styles.menuTitle, { color: colors.text }]}>{recipeModalRecipe.name}</Text>
                 {recipeModalRecipe.description ? (
                   <Text style={[styles.recipeDescription, { color: colors.textSecondary }]}>{recipeModalRecipe.description}</Text>
                 ) : null}
-                <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 12 }]}>Składniki</Text>
-                {recipeModalRecipe.ingredients.map((ing) => (
+                <Text style={[styles.recipeModalServingsInfo, { color: colors.textSecondary }]}>
+                  Wystarczy na {recipeServings} {recipeServings === 1 ? 'porcję' : recipeServings < 5 ? 'porcje' : 'porcji'}.
+                </Text>
+                {(hasNutrition || computedKcal) ? (
+                  <View style={[styles.recipeModalNutritionRow, { backgroundColor: colors.rowBg }]}>
+                    <Text style={[styles.recipeModalNutritionLabel, { color: colors.textSecondary }]}>Na 1 porcję: </Text>
+                    {recipeModalRecipe.calories_per_serving != null && <Text style={[styles.recipeModalNutritionVal, { color: colors.text }]}>{Math.round(recipeModalRecipe.calories_per_serving)} kcal</Text>}
+                    {computedKcal != null && (recipeModalRecipe.calories_per_serving == null ? (
+                      <Text style={[styles.recipeModalNutritionVal, { color: colors.textSecondary }]}>~{computedKcal.kcalPerServing} kcal (szac. z składników)</Text>
+                    ) : (
+                      <Text style={[styles.recipeModalNutritionVal, { color: colors.textSecondary }]}> (szac. {computedKcal.kcalPerServing} kcal)</Text>
+                    ))}
+                    {recipeModalRecipe.protein_per_serving_g != null && <Text style={[styles.recipeModalNutritionVal, { color: colors.textSecondary }]}>B: {recipeModalRecipe.protein_per_serving_g}g</Text>}
+                    {recipeModalRecipe.fat_per_serving_g != null && <Text style={[styles.recipeModalNutritionVal, { color: colors.textSecondary }]}>T: {recipeModalRecipe.fat_per_serving_g}g</Text>}
+                    {recipeModalRecipe.carbs_per_serving_g != null && <Text style={[styles.recipeModalNutritionVal, { color: colors.textSecondary }]}>W: {recipeModalRecipe.carbs_per_serving_g}g</Text>}
+                  </View>
+                ) : null}
+                <View style={styles.recipeModalServingsRow}>
+                  <Text style={[styles.recipeModalServingsLabel, { color: colors.text }]}>Ile porcji?</Text>
+                  <View style={styles.recipeModalServingsControls}>
+                    <TouchableOpacity style={[styles.recipeModalServingsBtn, { backgroundColor: colors.rowBg, borderColor: colors.border }]} onPress={() => setRecipeModalDesiredServings((s) => Math.max(1, s - 1))}>
+                      <Text style={[styles.recipeModalServingsBtnText, { color: colors.text }]}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={[styles.recipeModalServingsVal, { color: colors.text }]}>{recipeModalDesiredServings}</Text>
+                    <TouchableOpacity style={[styles.recipeModalServingsBtn, { backgroundColor: colors.rowBg, borderColor: colors.border }]} onPress={() => setRecipeModalDesiredServings((s) => s + 1)}>
+                      <Text style={[styles.recipeModalServingsBtnText, { color: colors.text }]}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 12 }]}>
+                  Składniki {recipeModalDesiredServings !== recipeServings ? `(dla ${recipeModalDesiredServings} porcji)` : ''}
+                </Text>
+                {recipeModalRecipe.ingredients.map((ing) => {
+                  const displayQty = scaleIngredientQuantity(ing.quantity, ing.unit, recipeModalDesiredServings, recipeServings);
+                  const qtyStr = displayQty % 1 === 0 ? String(Math.round(displayQty)) : String(displayQty);
+                  return (
                   <TouchableOpacity
                     key={ing.id}
                     style={[styles.recipeIngredientRow, { backgroundColor: colors.rowBg }]}
                     onPress={() => toggleRecipeIngredient(ing.id)}
-                    accessibilityLabel={`${ing.ingredient_label} ${ing.quantity} ${ing.unit}`}
+                    accessibilityLabel={`${ing.ingredient_label} ${qtyStr} ${ing.unit}`}
                     accessibilityState={{ checked: recipeModalSelectedIds.has(ing.id) }}
                   >
                     <Text style={[styles.recipeIngredientLabel, { color: colors.text }]}>
-                      {ing.ingredient_label} – {ing.quantity % 1 === 0 ? Math.round(ing.quantity) : ing.quantity} {ing.unit}
+                      {ing.ingredient_label} – {qtyStr} {ing.unit}
                     </Text>
                     <Text style={{ color: colors.primary, fontSize: 18 }}>
                       {recipeModalSelectedIds.has(ing.id) ? '☑' : '☐'}
                     </Text>
                   </TouchableOpacity>
-                ))}
+                  );
+                })}
+                {recipeModalRecipe.steps && recipeModalRecipe.steps.length > 0 ? (
+                  <>
+                    <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 12 }]}>Sposób przygotowania</Text>
+                    {recipeModalRecipe.steps.map((step, idx) => (
+                      <View key={step.id} style={[styles.recipeStepRow, { backgroundColor: colors.rowBg }]}>
+                        <Text style={[styles.recipeStepNum, { color: colors.primary }]}>{idx + 1}.</Text>
+                        <Text style={[styles.recipeStepText, { color: colors.text }]}>{step.instruction}</Text>
+                      </View>
+                    ))}
+                  </>
+                ) : null}
                 <View style={styles.editNameRow}>
                   <TouchableOpacity
                     style={[styles.editNameButton, styles.editNameButtonSecondary, { borderColor: colors.primary }]}
@@ -940,7 +1289,8 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 </View>
               </>
-            )}
+              );
+            })()}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1061,9 +1411,100 @@ const styles = StyleSheet.create({
   menuOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
+  },
+  menuDropdownCard: {
+    width: 280,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  menuDropdownSection: {
+    paddingVertical: 6,
+  },
+  menuDropdownSectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    paddingHorizontal: 4,
+  },
+  menuDropdownCodeRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 24,
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    gap: 8,
+  },
+  menuDropdownCode: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  menuDropdownCopyBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  menuDropdownCopyBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  menuDropdownDivider: {
+    height: 1,
+    marginVertical: 4,
+  },
+  menuDropdownThemeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  menuDropdownThemeBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    minWidth: 62,
+  },
+  menuDropdownThemeBtnActive: {
+    borderWidth: 2,
+  },
+  menuDropdownThemeIcon: {
+    fontSize: 18,
+    marginBottom: 2,
+  },
+  menuDropdownThemeLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  menuDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    gap: 10,
+  },
+  menuDropdownItemIcon: {
+    fontSize: 16,
+    width: 24,
+    textAlign: 'center',
+  },
+  menuDropdownItemLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  menuDropdownItemLast: {
+    borderBottomWidth: 0,
   },
   menuCard: {
     backgroundColor: '#fff',
@@ -1077,6 +1518,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 16,
     textAlign: 'center',
+  },
+  themePresetsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+  themePresetButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    minWidth: 68,
+  },
+  themePresetButtonActive: {
+    borderWidth: 2,
+  },
+  themePresetLabel: {
+    fontSize: 11,
+    marginTop: 2,
   },
   themeRow: {
     flexDirection: 'row',
@@ -1183,8 +1645,26 @@ const styles = StyleSheet.create({
     marginTop: 24,
     color: '#16a34a',
   },
+  categoriesCollapseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 12,
+  },
+  categoriesCollapseLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  categoriesCollapseChevron: {
+    fontSize: 12,
+  },
   categoriesSection: {
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 12,
   },
   categoriesHint: {
     fontSize: 13,
@@ -1196,7 +1676,37 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   suggestedRecipesSection: {
+    marginBottom: 20,
+  },
+  drawRecipeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 10,
     marginBottom: 12,
+  },
+  drawRecipeButtonIcon: {
+    fontSize: 22,
+    marginRight: 10,
+  },
+  drawRecipeButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  listSortDivider: {
+    borderTopWidth: 1,
+    marginTop: 4,
+    paddingTop: 16,
+    marginBottom: 8,
+  },
+  listSortLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 10,
   },
   suggestedRecipesWrap: {
     flexDirection: 'row',
@@ -1215,6 +1725,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  recipeChipKcal: {
+    fontSize: 11,
+    marginTop: 2,
+  },
   recipeModalCard: {
     borderRadius: 16,
     padding: 24,
@@ -1228,6 +1742,60 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
+  recipeModalServingsInfo: {
+    fontSize: 13,
+    marginTop: 6,
+  },
+  recipeModalNutritionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  recipeModalNutritionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  recipeModalNutritionVal: {
+    fontSize: 13,
+  },
+  recipeModalServingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  recipeModalServingsLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  recipeModalServingsControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  recipeModalServingsBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recipeModalServingsBtnText: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  recipeModalServingsVal: {
+    fontSize: 17,
+    fontWeight: '700',
+    minWidth: 28,
+    textAlign: 'center',
+  },
   recipeIngredientRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1240,6 +1808,25 @@ const styles = StyleSheet.create({
   recipeIngredientLabel: {
     fontSize: 15,
     flex: 1,
+  },
+  recipeStepRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  recipeStepNum: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginRight: 8,
+    minWidth: 20,
+  },
+  recipeStepText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
   },
   categoryChip: {
     width: '30%',
@@ -1266,7 +1853,14 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 340,
+    maxHeight: Dimensions.get('window').height * 0.85,
     alignSelf: 'center',
+  },
+  categoryPickerScroll: {
+    maxHeight: Dimensions.get('window').height * 0.5,
+  },
+  categoryPickerScrollContent: {
+    paddingBottom: 8,
   },
   categoryPickerHeader: {
     flexDirection: 'row',
@@ -1277,18 +1871,79 @@ const styles = StyleSheet.create({
   categoryPickerIcon: {
     fontSize: 36,
   },
-  categoryProductRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+  categoryProductBlock: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: 10,
     marginBottom: 8,
   },
   categoryProductLabel: {
     fontSize: 16,
     fontWeight: '500',
+    marginBottom: 8,
+  },
+  categoryProductFormRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryProductQtyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  categoryProductQtyBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryProductQtyBtnText: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  categoryProductQtyInput: {
+    width: 52,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  categoryProductUnitChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    flex: 1,
+  },
+  categoryProductUnitChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  categoryProductUnitChipActive: {
+    borderWidth: 2,
+  },
+  categoryProductUnitChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  categoryProductAddBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    minWidth: 64,
+    alignItems: 'center',
+  },
+  categoryProductAddBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   categoryProductAdd: {
     fontSize: 15,
@@ -1374,6 +2029,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#b91c1c',
     textAlign: 'center',
+  },
+  listGroupByRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  listGroupByButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  listGroupByButtonActive: {
+    borderWidth: 2,
+  },
+  listGroupByLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  listGroup: {
+    marginBottom: 14,
+  },
+  listGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    paddingHorizontal: 4,
+  },
+  listGroupIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  listGroupTitle: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   listRow: {
     flexDirection: 'row',

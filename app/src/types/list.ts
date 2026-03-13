@@ -6,5 +6,6 @@ export type ListItem = {
   position: number;
   quantity: number;
   unit: string;
+  recipe_id: string | null;
   updated_at: string;
 };

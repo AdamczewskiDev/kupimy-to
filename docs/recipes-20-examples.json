@@ -1,0 +1,336 @@
+{
+  "recipes": [
+    {
+      "name": "Owsianka z jabłkiem i cynamonem",
+      "description": "Ciepła owsianka na rozgrzanie – idealna na zimowe śniadanie.",
+      "ingredients": [
+        { "label": "Płatki owsiane", "quantity": 50, "unit": "g" },
+        { "label": "Mleko", "quantity": 200, "unit": "ml" },
+        { "label": "Jabłka", "quantity": 1, "unit": "szt" },
+        { "label": "Masło", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Płatki zalać mlekiem, gotować na wolnym ogniu 5–7 minut, często mieszając.",
+        "Jabłko obrać, zetrzeć na tarce. Dodać do owsianki na 2 min przed końcem.",
+        "Przed podaniem dodać odrobinę masła. Posypać cynamonem."
+      ]
+    },
+    {
+      "name": "Jajecznica z pomidorami",
+      "description": "Klasyczna jajecznica z dodatkiem świeżych pomidorów.",
+      "ingredients": [
+        { "label": "Jajka", "quantity": 3, "unit": "szt" },
+        { "label": "Pomidory", "quantity": 1, "unit": "szt" },
+        { "label": "Masło", "quantity": 1, "unit": "szt" },
+        { "label": "Chleb", "quantity": 2, "unit": "szt" }
+      ],
+      "steps": [
+        "Jajka roztrzepać w miseczce. Pomidor pokroić w kostkę.",
+        "Na patelni rozpuścić masło, wlać jajka, mieszać. Gdy się zetną, dodać pomidory.",
+        "Doprawić solą i pieprzem. Podawać z pieczywem."
+      ]
+    },
+    {
+      "name": "Kanapki z twarogiem i rzodkiewką",
+      "description": "Lekkie śniadanie – twaróg z rzodkiewką na chrupiącym chlebie.",
+      "ingredients": [
+        { "label": "Chleb", "quantity": 1, "unit": "szt" },
+        { "label": "Twaróg", "quantity": 150, "unit": "g" },
+        { "label": "Ogórki", "quantity": 0.5, "unit": "szt" },
+        { "label": "Rzodkiewka", "quantity": 4, "unit": "szt" },
+        { "label": "Masło", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Chleb pokroić w kromki, posmarować masłem.",
+        "Twaróg rozgnieść widelcem, doprawić solą. Ogórek i rzodkiewkę pokroić w plasterki.",
+        "Na chleb nałożyć twaróg, ułożyć warzywa. Podawać od razu."
+      ]
+    },
+    {
+      "name": "Smoothie bananowo-jogurtowe",
+      "description": "Szybki koktajl na śniadanie lub drugie śniadanie.",
+      "ingredients": [
+        { "label": "Banany", "quantity": 1, "unit": "szt" },
+        { "label": "Jogurt naturalny", "quantity": 1, "unit": "szt" },
+        { "label": "Mleko", "quantity": 100, "unit": "ml" },
+        { "label": "Płatki owsiane", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Banana obrać, pokroić. Wrzucić do blendera z jogurtem i mlekiem.",
+        "Zmiksować na gładki koktajl. Opcjonalnie dodać łyżkę płatków owsianych.",
+        "Przelać do szklanki, podawać od razu."
+      ]
+    },
+    {
+      "name": "Tosty z serem i szynką",
+      "description": "Chrupiące tosty z roztopionym serem – dzieci je uwielbiają.",
+      "ingredients": [
+        { "label": "Pieczywo tostowe", "quantity": 4, "unit": "szt" },
+        { "label": "Ser żółty", "quantity": 2, "unit": "szt" },
+        { "label": "Szynka", "quantity": 2, "unit": "szt" },
+        { "label": "Masło", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Kromki tostowe posmarować masłem z jednej strony.",
+        "Na dwóch kromkach (nieposmarowaną stroną do góry) ułożyć szynkę i ser, przykryć drugimi kromkami (masłem na zewnątrz).",
+        "Smażyć na patelni lub w opiekaczu do zrumienienia z obu stron."
+      ]
+    },
+    {
+      "name": "Omlet z warzywami",
+      "description": "Puszysty omlet z pomidorem i serem.",
+      "ingredients": [
+        { "label": "Jajka", "quantity": 3, "unit": "szt" },
+        { "label": "Pomidory", "quantity": 1, "unit": "szt" },
+        { "label": "Ser żółty", "quantity": 50, "unit": "g" },
+        { "label": "Olej", "quantity": 1, "unit": "szt" },
+        { "label": "Chleb", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Jajka roztrzepać, doprawić solą. Warzywa pokroić w drobną kostkę, ser zetrzeć.",
+        "Na patelni rozgrzać olej, wlać jajka. Gdy dół się zetnie, posypać warzywami i serem.",
+        "Złożyć omlet na pół lub przewrócić. Podawać z pieczywem."
+      ]
+    },
+    {
+      "name": "Jogurt z owocami i musli",
+      "description": "Śniadanie bez gotowania – jogurt, owoce i płatki.",
+      "ingredients": [
+        { "label": "Jogurt naturalny", "quantity": 1, "unit": "szt" },
+        { "label": "Banany", "quantity": 0.5, "unit": "szt" },
+        { "label": "Jabłka", "quantity": 0.5, "unit": "szt" },
+        { "label": "Płatki owsiane", "quantity": 2, "unit": "szt" }
+      ],
+      "steps": [
+        "Jogurt przełożyć do miseczki. Banana i jabłko pokroić w plasterki.",
+        "Na jogurt położyć owoce, posypać płatkami owsianymi (lub gotowym musli).",
+        "Opcjonalnie skropić miodem. Podawać od razu."
+      ]
+    },
+    {
+      "name": "Zupa pomidorowa z makaronem",
+      "description": "Prosta zupa pomidorowa – klasyka obiadowa.",
+      "ingredients": [
+        { "label": "Pomidory", "quantity": 4, "unit": "szt" },
+        { "label": "Makaron", "quantity": 200, "unit": "g" },
+        { "label": "Sól", "quantity": 1, "unit": "szt" },
+        { "label": "Olej", "quantity": 2, "unit": "szt" }
+      ],
+      "steps": [
+        "Pomidory sparzyć, obrać ze skórki i pokroić w kostkę.",
+        "W garnku rozgrzać olej, wrzucić pomidory i dusić kilka minut. Dolać ok. 1 l wody, doprawić solą, gotować 15 min.",
+        "Dodać makaron, gotować do miękkości według opisu na opakowaniu. Podawać z bazylią."
+      ]
+    },
+    {
+      "name": "Kurczak z ryżem i warzywami",
+      "description": "Danie jednogarnkowe – kurczak, ryż i marchewka.",
+      "ingredients": [
+        { "label": "Kurczak", "quantity": 300, "unit": "g" },
+        { "label": "Ryż", "quantity": 150, "unit": "g" },
+        { "label": "Marchew", "quantity": 2, "unit": "szt" },
+        { "label": "Olej", "quantity": 1, "unit": "szt" },
+        { "label": "Sól", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Kurczaka pokroić w kostkę, marchew w plasterki. Ryż opłukać.",
+        "Na oleju zeszklić kurczaka, dodać marchew, chwilę dusić. Dolać 400 ml wody, wsypać ryż, doprawić solą.",
+        "Gotować pod przykryciem ok. 20 min, aż ryż wchłonie płyn. Podawać na ciepło."
+      ]
+    },
+    {
+      "name": "Spaghetti bolognese",
+      "description": "Makaron z sosem mięsnym – obiad dla całej rodziny.",
+      "ingredients": [
+        { "label": "Makaron", "quantity": 300, "unit": "g" },
+        { "label": "Wołowina", "quantity": 300, "unit": "g" },
+        { "label": "Pomidory", "quantity": 3, "unit": "szt" },
+        { "label": "Marchew", "quantity": 1, "unit": "szt" },
+        { "label": "Olej", "quantity": 2, "unit": "szt" },
+        { "label": "Sól", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Makaron ugotować al dente według opisu na opakowaniu. Odcedzić.",
+        "Mięso pokroić i podsmażyć na oleju. Dodać drobno pokrojoną marchew i pomidory (lub passatę), dusić 20 min. Doprawić solą i pieprzem.",
+        "Podawać makaron z sosem, posypać parmezanem lub bazylią."
+      ]
+    },
+    {
+      "name": "Zupa jarzynowa",
+      "description": "Lekka zupa na wywarze warzywnym z makaronem.",
+      "ingredients": [
+        { "label": "Marchew", "quantity": 2, "unit": "szt" },
+        { "label": "Pietruszka", "quantity": 1, "unit": "szt" },
+        { "label": "Makaron", "quantity": 100, "unit": "g" },
+        { "label": "Olej", "quantity": 1, "unit": "szt" },
+        { "label": "Sól", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Warzywa obrać, pokroić w kostkę. W garnku rozgrzać olej, zrumienić warzywa.",
+        "Zalać 1,5 l wody, doprawić solą, gotować 25 min.",
+        "Dodać makaron, gotować do miękkości. Podawać z natką pietruszki."
+      ]
+    },
+    {
+      "name": "Kotlet schabowy z ziemniakami",
+      "description": "Tradycyjny kotlet panierowany z ziemniakami i surówką.",
+      "ingredients": [
+        { "label": "Schab wieprzowy", "quantity": 400, "unit": "g" },
+        { "label": "Jajka", "quantity": 1, "unit": "szt" },
+        { "label": "Mąka", "quantity": 3, "unit": "szt" },
+        { "label": "Olej", "quantity": 3, "unit": "szt" },
+        { "label": "Marchew", "quantity": 1, "unit": "szt" },
+        { "label": "Ogórki", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Mięso rozbić tłuczkiem, doprawić solą i pieprzem. Obtoczyć w mące, jajku i bułce tartej.",
+        "Smażyć na rozgrzanym oleju z obu stron do zrumienienia. Odłożyć na ręcznik papierowy.",
+        "Ziemniaki ugotować. Surówkę zetrzeć z marchewki i ogórka, doprawić. Podawać kotlet z ziemniakami i surówką."
+      ]
+    },
+    {
+      "name": "Sałatka z kurczakiem i warzywami",
+      "description": "Lekki obiad – sałatka z grillowanym kurczakiem.",
+      "ingredients": [
+        { "label": "Kurczak", "quantity": 200, "unit": "g" },
+        { "label": "Pomidory", "quantity": 2, "unit": "szt" },
+        { "label": "Ogórki", "quantity": 1, "unit": "szt" },
+        { "label": "Olej", "quantity": 2, "unit": "szt" },
+        { "label": "Sól", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Kurczaka pokroić w paski, doprawić, usmażyć na oleju do zrumienienia.",
+        "Pomidory i ogórek pokroić w kostkę. Wymieszać z kurczakiem w misce.",
+        "Skropić olejem, doprawić solą i pieprzem. Można dodać jogurt naturalny zamiast oleju."
+      ]
+    },
+    {
+      "name": "Makaron z serem i mlekiem",
+      "description": "Szybki obiad – makaron zapiekany z serem.",
+      "ingredients": [
+        { "label": "Makaron", "quantity": 250, "unit": "g" },
+        { "label": "Ser żółty", "quantity": 100, "unit": "g" },
+        { "label": "Mleko", "quantity": 100, "unit": "ml" },
+        { "label": "Masło", "quantity": 1, "unit": "szt" },
+        { "label": "Sól", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Makaron ugotować al dente, odcedzić. Ser zetrzeć.",
+        "W naczyniu żaroodpornym wymieszać makaron z masłem, mlekiem i większością sera. Doprawić solą.",
+        "Posypać resztą sera, zapiec w piekarniku (180°C) ok. 15 min do zrumienienia."
+      ]
+    },
+    {
+      "name": "Kasza gryczana z gulaszem",
+      "description": "Sycący obiad – kasza z mięsnym gulaszem.",
+      "ingredients": [
+        { "label": "Kasza gryczana", "quantity": 200, "unit": "g" },
+        { "label": "Wołowina", "quantity": 350, "unit": "g" },
+        { "label": "Marchew", "quantity": 2, "unit": "szt" },
+        { "label": "Pomidory", "quantity": 2, "unit": "szt" },
+        { "label": "Olej", "quantity": 2, "unit": "szt" },
+        { "label": "Sól", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Kaszę ugotować według opisu na opakowaniu (zwykle 2 szklanki wody na szklankę kaszy).",
+        "Mięso pokroić w kostkę, podsmażyć na oleju. Dodać pokrojoną marchew i pomidory, dusić 30 min pod przykryciem. Doprawić.",
+        "Podawać kaszę z gulaszem."
+      ]
+    },
+    {
+      "name": "Sałatka warzywna z olejem",
+      "description": "Prosta sałatka – idealna na lekki obiad lub kolację.",
+      "ingredients": [
+        { "label": "Pomidory", "quantity": 2, "unit": "szt" },
+        { "label": "Ogórki", "quantity": 2, "unit": "szt" },
+        { "label": "Marchew", "quantity": 1, "unit": "szt" },
+        { "label": "Olej", "quantity": 1, "unit": "szt" },
+        { "label": "Sól", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Warzywa umyć. Pomidory i ogórki pokroić w kostkę, marchew zetrzeć na tarce.",
+        "Wymieszać w misce, skropić olejem, doprawić solą i pieprzem.",
+        "Opcjonalnie dodać cebulę lub natkę pietruszki. Podawać z pieczywem."
+      ]
+    },
+    {
+      "name": "Kanapki z pastą jajeczną",
+      "description": "Kolacja w 10 minut – kanapki z jajkiem i ogórkiem.",
+      "ingredients": [
+        { "label": "Chleb", "quantity": 1, "unit": "szt" },
+        { "label": "Jajka", "quantity": 2, "unit": "szt" },
+        { "label": "Ogórki", "quantity": 0.5, "unit": "szt" },
+        { "label": "Jogurt naturalny", "quantity": 1, "unit": "szt" },
+        { "label": "Masło", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Jajka ugotować na twardo (ok. 8 min), ostudzić, obrać. Rozgnieść widelcem.",
+        "Dodać drobno pokrojony ogórek i łyżkę jogurtu, doprawić solą. Wymieszać.",
+        "Chleb posmarować masłem, nałożyć pastę. Podawać z warzywami."
+      ]
+    },
+    {
+      "name": "Omlet na kolację",
+      "description": "Szybki omlet z szynką i serem – sycąca kolacja.",
+      "ingredients": [
+        { "label": "Jajka", "quantity": 3, "unit": "szt" },
+        { "label": "Szynka", "quantity": 2, "unit": "szt" },
+        { "label": "Ser żółty", "quantity": 50, "unit": "g" },
+        { "label": "Olej", "quantity": 1, "unit": "szt" },
+        { "label": "Chleb", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Jajka roztrzepać, doprawić solą. Szynkę pokroić w kostkę, ser zetrzeć.",
+        "Na patelni rozgrzać olej, wlać jajka. Gdy dół się zetnie, posypać szynką i serem, złożyć na pół.",
+        "Smażyć jeszcze chwilę. Podawać z pieczywem i warzywami."
+      ]
+    },
+    {
+      "name": "Twaróg na słodko z owocami",
+      "description": "Lekka kolacja – twaróg z bananem i miodem.",
+      "ingredients": [
+        { "label": "Twaróg", "quantity": 200, "unit": "g" },
+        { "label": "Banany", "quantity": 1, "unit": "szt" },
+        { "label": "Jogurt naturalny", "quantity": 2, "unit": "szt" }
+      ],
+      "steps": [
+        "Twaróg przełożyć do miseczki, rozgnieść widelcem. Wymieszać z jogurtem.",
+        "Banana pokroić w plasterki, ułożyć na twarogu.",
+        "Opcjonalnie skropić miodem lub posypać płatkami. Podawać od razu."
+      ]
+    },
+    {
+      "name": "Zapiekanka z kiełbasą i serem",
+      "description": "Prosta zapiekanka – kiełbasa, ziemniaki i ser.",
+      "ingredients": [
+        { "label": "Ziemniaki", "quantity": 500, "unit": "g" },
+        { "label": "Kiełbasa", "quantity": 1, "unit": "szt" },
+        { "label": "Ser żółty", "quantity": 100, "unit": "g" },
+        { "label": "Jajka", "quantity": 1, "unit": "szt" },
+        { "label": "Jogurt naturalny", "quantity": 2, "unit": "szt" },
+        { "label": "Olej", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Ziemniaki ugotować w mundurkach, ostudzić, pokroić w plastry. Kiełbasę pokroić w plasterki, ser zetrzeć.",
+        "W naczyniu żaroodpornym ułożyć warstwami ziemniaki, kiełbasę i ser. Przełożyć jogurtem zmieszanym z jajkiem.",
+        "Zapiec w piekarniku (180°C) ok. 25 min do zrumienienia. Podawać z surówką."
+      ]
+    },
+    {
+      "name": "Tosty z awokado i jajkiem",
+      "description": "Kolacja w stylu brunch – tosty z awokado i jajkiem sadzonym.",
+      "ingredients": [
+        { "label": "Pieczywo tostowe", "quantity": 2, "unit": "szt" },
+        { "label": "Awokado", "quantity": 1, "unit": "szt" },
+        { "label": "Jajka", "quantity": 2, "unit": "szt" },
+        { "label": "Olej", "quantity": 1, "unit": "szt" },
+        { "label": "Sól", "quantity": 1, "unit": "szt" }
+      ],
+      "steps": [
+        "Chleb opiekać w tosterze. Jajka usmażyć na oleju (sadzone lub jajecznica).",
+        "Awokado rozgnieść widelcem, doprawić solą i sokiem z cytryny. Na tosty nałożyć awokado, położyć jajko.",
+        "Opcjonalnie posypać pieprzem lub papryką. Podawać od razu."
+      ]
+    }
+  ]
+}

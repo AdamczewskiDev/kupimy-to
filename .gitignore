@@ -15,6 +15,9 @@ web-build/
 _bmad/
 _bmad-output/
 
+# Seed translation cache (można usunąć – skrypt odtworzy)
+supabase/seed-pl/.translation-cache.json
+
 # System
 .DS_Store
 *.log

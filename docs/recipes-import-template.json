@@ -1,0 +1,36 @@
+{
+  "recipes": [
+    {
+      "name": "Zupa pomidorowa",
+      "description": "Prosta zupa pomidorowa z makaronem. Idealna na obiad.",
+      "ingredients": [
+        { "label": "Pomidory", "quantity": 4, "unit": "szt" },
+        { "label": "Makaron", "quantity": 200, "unit": "g" },
+        { "label": "Sól", "quantity": 1, "unit": "szt" },
+        { "label": "Olej", "quantity": 2, "unit": "szt" }
+      ],
+      "steps": [
+        "Pomidory sparzyć, obrać ze skórki i pokroić w kostkę.",
+        "W garnku rozgrzać olej, wrzucić pomidory i dusić kilka minut.",
+        "Dolać ok. 1 l wody, doprawić solą, gotować 15 min.",
+        "Dodać makaron, gotować do miękkości według opisu na opakowaniu.",
+        "Podawać z listkiem bazylii."
+      ]
+    },
+    {
+      "name": "Kanapki z szynką i serem",
+      "description": "Szybkie kanapki na śniadanie.",
+      "ingredients": [
+        { "label": "Chleb", "quantity": 1, "unit": "szt" },
+        { "label": "Masło", "quantity": 1, "unit": "szt" },
+        { "label": "Szynka", "quantity": 4, "unit": "szt" },
+        { "label": "Ser żółty", "quantity": 2, "unit": "szt" }
+      ],
+      "steps": [
+        "Chleb pokroić w kromki i posmarować masłem.",
+        "Na każdą kromkę położyć plasterki szynki i sera.",
+        "Podawać od razu lub zapakować do pracy."
+      ]
+    }
+  ]
+}

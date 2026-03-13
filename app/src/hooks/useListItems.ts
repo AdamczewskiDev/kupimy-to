@@ -9,7 +9,7 @@ type UseListItemsResult = {
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
-  addItem: (label: string, quantity?: number, unit?: string) => Promise<{ item: ListItem | null; error: string | null }>;
+  addItem: (label: string, quantity?: number, unit?: string, recipeId?: string | null) => Promise<{ item: ListItem | null; error: string | null }>;
   removeItem: (id: string) => Promise<{ error: string | null }>;
   markAsBought: (id: string) => Promise<{ error: string | null }>;
   markAsTodo: (id: string) => Promise<{ error: string | null }>;
@@ -24,6 +24,7 @@ function mapRow(row: Record<string, unknown>): ListItem {
     position: (row.position as number) ?? 0,
     quantity: typeof row.quantity === 'number' ? row.quantity : parseFloat(String(row.quantity ?? 1)) || 1,
     unit: (row.unit as string) ?? 'szt',
+    recipe_id: (row.recipe_id as string) ?? null,
     updated_at: row.updated_at as string,
   };
 }
@@ -42,7 +43,7 @@ export function useListItems(householdId: string | null): UseListItemsResult {
     setError(null);
     const { data, error: e } = await supabase
       .from('list_items')
-      .select('id, household_id, label, status, position, quantity, unit, updated_at')
+      .select('id, household_id, label, status, position, quantity, unit, recipe_id, updated_at')
       .eq('household_id', householdId)
       .order('position', { ascending: true })
       .order('updated_at', { ascending: true });
@@ -122,23 +123,26 @@ export function useListItems(householdId: string | null): UseListItemsResult {
     async (
       label: string,
       quantity: number = 1,
-      unit: string = 'szt'
+      unit: string = 'szt',
+      recipeId?: string | null
     ): Promise<{ item: ListItem | null; error: string | null }> => {
       if (!householdId) return { item: null, error: 'Brak gospodarstwa' };
       const trimmed = label.trim();
       if (!trimmed) return { item: null, error: 'Wpisz nazwę pozycji' };
       const q = Number(quantity);
       const safeQ = Number.isFinite(q) && q > 0 ? q : 1;
+      const payload: Record<string, unknown> = {
+        household_id: householdId,
+        label: trimmed,
+        status: 'todo',
+        quantity: safeQ,
+        unit: unit && ['szt', 'kg', 'g', 'l', 'ml', 'opak'].includes(unit) ? unit : 'szt',
+      };
+      if (recipeId) payload.recipe_id = recipeId;
       const { data, error: e } = await supabase
         .from('list_items')
-        .insert({
-          household_id: householdId,
-          label: trimmed,
-          status: 'todo',
-          quantity: safeQ,
-          unit: unit && ['szt', 'kg', 'g', 'l', 'ml', 'opak'].includes(unit) ? unit : 'szt',
-        })
-        .select('id, household_id, label, status, position, quantity, unit, updated_at')
+        .insert(payload)
+        .select('id, household_id, label, status, position, quantity, unit, recipe_id, updated_at')
         .single();
       if (e) return { item: null, error: e.message };
       return { item: data ? mapRow(data as Record<string, unknown>) : null, error: null };
